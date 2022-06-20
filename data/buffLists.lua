@@ -53,7 +53,6 @@ return {
     },
     ['whm/sch'] = {
             'Haste',
-            'Light Arts',
             'Protectra V',
             'Shellra V',
             'Reraise IV',
@@ -64,6 +63,14 @@ return {
 	['sch'] = {
             'Protect V',
             'Shell V',
-            'Reraise'
+            'Reraise III'
     },
+    ['sch/whm'] = {
+        'Haste',
+        'Protect V',
+        'Shell V',
+        'Reraise III',
+        'Aurorastorm II',
+        'Regen V'
+},
 }

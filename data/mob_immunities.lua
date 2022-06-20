@@ -116,6 +116,9 @@ return {
         2,
         194
     },
+    ["Broxa"] = S{
+        28
+    },
     ["Bugaboo"] = S{
         2
     },
@@ -162,6 +165,7 @@ return {
         194
     },
     ["Evincing Idol"] = S{
+        2,
         6
     },
     ["Fire Circle"] = S{
