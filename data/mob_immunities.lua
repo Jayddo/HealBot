@@ -15,6 +15,9 @@ return {
         13,
         194
     },
+    ["Apademak"] = S{
+        194
+    },
     ["Archaic Chariot"] = S{
         2
     },
@@ -24,8 +27,17 @@ return {
     ["Aurix"] = S{
         6
     },
+    ["Awoken Ariri Samariri"] = S{
+        6
+    },
     ["Awoken Hrungnir"] = S{
         2
+    },
+    ["Awoken Mokkuralfi"] = S{
+        6
+    },
+    ["Awoken Vampyr Jarl"] = S{
+        6
     },
     ["Azure-toothed Clawberry"] = S{
         2
@@ -63,6 +75,12 @@ return {
         2,
         28
     },
+    ["Bozzetto Deathbringer"] = S{
+        2
+    },
+    ["Bozzetto Don"] = S{
+        2
+    },
     ["Bozzetto Elemental"] = S{
         2
     },
@@ -96,6 +114,10 @@ return {
         10
     },
     ["Bozzetto Rascal"] = S{
+        2,
+        28
+    },
+    ["Bozzetto Ravager"] = S{
         2,
         28
     },
@@ -160,7 +182,8 @@ return {
     },
     ["Dhorme Khimaira"] = S{
         6,
-        13
+        13,
+        194
     },
     ["Dimensional Tether"] = S{
         194
@@ -178,6 +201,9 @@ return {
         13,
         194
     },
+    ["Enkelados"] = S{
+        2
+    },
     ["Evincing Idol"] = S{
         2,
         6
@@ -191,6 +217,7 @@ return {
     },
     ["Fu"] = S{
         2,
+        6,
         10,
         28
     },
@@ -202,6 +229,7 @@ return {
     },
     ["Glassy Craver"] = S{
         2,
+        6,
         10,
         28
     },
@@ -257,8 +285,10 @@ return {
     },
     ["Kei"] = S{
         2,
+        6,
         10,
         11,
+        12,
         28
     },
     ["Kin"] = S{
@@ -274,6 +304,7 @@ return {
         2
     },
     ["Kyou"] = S{
+        6,
         10,
         28
     },
@@ -308,6 +339,9 @@ return {
     ["Odin"] = S{
         10
     },
+    ["Ogopogo"] = S{
+        2
+    },
     ["Okyupete"] = S{
         2
     },
@@ -318,6 +352,7 @@ return {
         28
     },
     ["Overseer's Tombstone"] = S{
+        2,
         6
     },
     ["Palloritus"] = S{
