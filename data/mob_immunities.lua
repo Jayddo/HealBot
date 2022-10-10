@@ -69,7 +69,9 @@ return {
         28
     },
     ["Bozzetto Charger"] = S{
-        10
+        2,
+        10,
+        28
     },
     ["Bozzetto Chaser"] = S{
         2,
@@ -122,6 +124,10 @@ return {
         28
     },
     ["Bozzetto Regent"] = S{
+        28
+    },
+    ["Bozzetto Retributionist"] = S{
+        2,
         28
     },
     ["Bozzetto Servitor"] = S{
