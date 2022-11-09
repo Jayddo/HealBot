@@ -95,6 +95,13 @@ return {
     ["Bozzetto Fistfighter"] = S{
         28
     },
+    ["Bozzetto Freyja"] = S{
+        2,
+        28
+    },
+    ["Bozzetto Frigg"] = S{
+        2
+    },
     ["Bozzetto High Vicar"] = S{
         2,
         10,
