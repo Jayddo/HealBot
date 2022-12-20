@@ -1,13 +1,21 @@
 return {
+    ["Achamoth"] = S{
+        2
+    },
     ["Agon Halo"] = S{
         2,
+        3,
         194
     },
     ["Air Circle"] = S{
         4,
         6,
+        12,
         13,
         194
+    },
+    ["Alectryon"] = S{
+        2
     },
     ["Amaranth Barrier"] = S{
         4,
@@ -28,6 +36,12 @@ return {
         6
     },
     ["Awoken Ariri Samariri"] = S{
+        6
+    },
+    ["Awoken Dendainsonne"] = S{
+        6
+    },
+    ["Awoken Freke"] = S{
         6
     },
     ["Awoken Hrungnir"] = S{
@@ -52,6 +66,9 @@ return {
     ["Blightslither"] = S{
         28
     },
+    ["Bozzetto Alexander"] = S{
+        2
+    },
     ["Bozzetto Astrologer"] = S{
         2
     },
@@ -62,15 +79,20 @@ return {
     },
     ["Bozzetto Breadwinner"] = S{
         2,
-        10
+        10,
+        28
     },
     ["Bozzetto Bruiser"] = S{
         10,
         28
     },
+    ["Bozzetto Carbuncle"] = S{
+        2
+    },
     ["Bozzetto Charger"] = S{
         2,
         10,
+        12,
         28
     },
     ["Bozzetto Chaser"] = S{
@@ -100,16 +122,35 @@ return {
         28
     },
     ["Bozzetto Frigg"] = S{
-        2
+        2,
+        28
+    },
+    ["Bozzetto Garuda"] = S{
+        2,
+        6,
+        194
     },
     ["Bozzetto High Vicar"] = S{
         2,
         10,
         28
     },
+    ["Bozzetto Housemaker"] = S{
+        2,
+        194
+    },
+    ["Bozzetto Ifrit"] = S{
+        2,
+        6,
+        13,
+        194
+    },
     ["Bozzetto Justiciar"] = S{
         10,
         28
+    },
+    ["Bozzetto Leviathan"] = S{
+        2
     },
     ["Bozzetto Monarch"] = S{
         2,
@@ -135,6 +176,7 @@ return {
     },
     ["Bozzetto Retributionist"] = S{
         2,
+        12,
         28
     },
     ["Bozzetto Servitor"] = S{
@@ -143,11 +185,27 @@ return {
     ["Bozzetto Sharpshooter"] = S{
         10
     },
+    ["Bozzetto Shiva"] = S{
+        2,
+        6,
+        194
+    },
+    ["Bozzetto Skathi"] = S{
+        2,
+        28
+    },
     ["Bozzetto Songstress"] = S{
         2
     },
     ["Bozzetto Swiftshooter"] = S{
         28
+    },
+    ["Bozzetto Titan"] = S{
+        2,
+        6,
+        13,
+        28,
+        194
     },
     ["Bozzetto Tormenter"] = S{
         2
@@ -174,7 +232,13 @@ return {
     ["Chest O'Plenty"] = S{
         6
     },
+    ["Chigre"] = S{
+        2
+    },
     ["Chirurgeon"] = S{
+        2
+    },
+    ["Cirein-croin"] = S{
         2
     },
     ["Cloud of Darkness"] = S{
@@ -187,8 +251,15 @@ return {
         2,
         4,
         6,
+        12,
         13,
         194
+    },
+    ["Dealan-dhe"] = S{
+        7
+    },
+    ["Dendainsonne"] = S{
+        2
     },
     ["Despot"] = S{
         194
@@ -201,6 +272,9 @@ return {
     ["Dimensional Tether"] = S{
         194
     },
+    ["Disjoined Elvaan"] = S{
+        28
+    },
     ["Disjoined Galka"] = S{
         7,
         28
@@ -208,9 +282,14 @@ return {
     ["Disjoined Mithra"] = S{
         28
     },
+    ["Disjoined Tarutaru"] = S{
+        28
+    },
     ["Earth Circle"] = S{
+        2,
         4,
         6,
+        12,
         13,
         194
     },
@@ -219,14 +298,23 @@ return {
     },
     ["Evincing Idol"] = S{
         2,
-        6
+        6,
+        28
     },
     ["Fire Circle"] = S{
         3,
         4,
         6,
+        12,
         13,
         194
+    },
+    ["Freke"] = S{
+        2
+    },
+    ["Frostnought"] = S{
+        2,
+        7
     },
     ["Fu"] = S{
         2,
@@ -262,10 +350,34 @@ return {
     ["Gnarled Rampart"] = S{
         194
     },
+    ["Gorgimera"] = S{
+        2
+    },
+    ["Gyroscopic Gears"] = S{
+        2
+    },
     ["Heqet"] = S{
         2
     },
+    ["Hrosshvalur"] = S{
+        2
+    },
     ["Hydra Bard"] = S{
+        2
+    },
+    ["Hydra Dragoon"] = S{
+        2
+    },
+    ["Hydra Monk"] = S{
+        2
+    },
+    ["Hydra Ninja"] = S{
+        2
+    },
+    ["Hydra Thief"] = S{
+        2
+    },
+    ["Hydra Warrior"] = S{
         2
     },
     ["Hyoscya"] = S{
@@ -275,6 +387,9 @@ return {
         4,
         6,
         13,
+        194
+    },
+    ["Iku-Turso"] = S{
         194
     },
     ["Impish Golem"] = S{
@@ -296,6 +411,9 @@ return {
     ["Ircinraq"] = S{
         28
     },
+    ["Keeper of Heiligtum"] = S{
+        2
+    },
     ["Kei"] = S{
         2,
         6,
@@ -306,6 +424,7 @@ return {
     },
     ["Kin"] = S{
         2,
+        6,
         10,
         12,
         28
@@ -328,12 +447,22 @@ return {
         2,
         4,
         6,
+        12,
         13,
         194
     },
     ["Lithicthrower Image"] = S{
         2,
         12
+    },
+    ["Logi"] = S{
+        2
+    },
+    ["Mboze"] = S{
+        7
+    },
+    ["Mildaunegeux"] = S{
+        2
     },
     ["Monolithic Boulder"] = S{
         2
@@ -358,6 +487,9 @@ return {
     ["Okyupete"] = S{
         2
     },
+    ["Ongo"] = S{
+        7
+    },
     ["Ou"] = S{
         2,
         7,
@@ -378,6 +510,9 @@ return {
     ["Plouton"] = S{
         28
     },
+    ["Psycheflayer"] = S{
+        2
+    },
     ["Putraxia"] = S{
         28
     },
@@ -393,13 +528,33 @@ return {
     ["Sere Stump"] = S{
         194
     },
+    ["Soulflayer"] = S{
+        2
+    },
+    ["Stoorworm"] = S{
+        2
+    },
+    ["Thillloab"] = S{
+        2
+    },
     ["Thunder Circle"] = S{
         4,
         6,
+        12,
         13,
         194
     },
     ["Tinnin"] = S{
+        2
+    },
+    ["Tunga"] = S{
+        2,
+        6
+    },
+    ["Vampyr Jarl"] = S{
+        2
+    },
+    ["Vanquished Einherjar"] = S{
         2
     },
     ["Volte Beastmaster"] = S{
@@ -478,8 +633,10 @@ return {
         194
     },
     ["Water Circle"] = S{
+        2,
         4,
         6,
+        12,
         13,
         194
     },
