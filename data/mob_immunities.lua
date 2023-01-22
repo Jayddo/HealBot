@@ -213,6 +213,9 @@ return {
     ["Bozzetto Tormenter"] = S{
         2
     },
+    ["Bozzetto Voyager Moogle"] = S{
+        10
+    },
     ["Brimboil"] = S{
         28
     },
@@ -472,6 +475,9 @@ return {
     },
     ["Monolithic Boulder"] = S{
         2
+    },
+    ["Moogle"] = S{
+        10
     },
     ["Mu'Sha Effigy"] = S{
         2,
