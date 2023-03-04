@@ -9,7 +9,10 @@ local buffs = {
     debuffList = {},
     buffList = {},
     ignored_debuffs = {},
-    action_buff_map = lor_settings.load('data/action_buff_map.lua')
+	gaol_auras = S{146,147,148,149,167,174,175,404},
+	perm_ignored_debuffs = S{136,137,138,139,140,141,142,540,557,558,559,560,561,562,563,564,565,566,567},
+    action_buff_map = lor_settings.load('data/action_buff_map.lua'),
+	auras = {},
 }
 local lc_res = _libs.lor.resources.lc_res
 local ffxi = _libs.lor.ffxi
@@ -70,6 +73,12 @@ function buffs.review_active_buffs(player, buff_list)
                 buffs.register_debuff(player, res.buffs[bname], false)
             end
         end
+		checklist = buffs.auras[player.name] or {}
+        for bname,binfo in pairs(checklist) do
+            if not active:contains(bname) then
+				buffs.remove_debuff_aura(player.name,bname)
+            end
+        end
     end
 end
 
@@ -107,32 +116,34 @@ function buffs.getDebuffQueue()
     local dbq = ActionQueue.new()
     local now = os.clock()
     for targ, debuffs in pairs(buffs.debuffList) do
-        for id, info in pairs(debuffs) do
-			local debuff = res.buffs[id]
-			local removalSpellName = debuff_map[debuff.en]
-			atcd(123,'Removal debuff enqueue -  ID: ' .. id .. ' Target: ' .. targ)
-			if (removalSpellName ~= nil) then
-				if (info.attempted == nil) or ((now - info.attempted) >= 3) then
-					local spell = res.spells:with('en', removalSpellName)
-					if healer:can_use(spell) and ffxi.target_is_valid(spell, targ) and id ~= 20 then
-						 -- handle AoE
-                        if settings.aoe_na then
-                            local numAccessionRange = buffs.getRemovableDebuffCountAroundTarget(targ, 10, id)
-                            if numAccessionRange >= 3 and accessionable:contains(spell.en) then
-                                spell.accession = true
-                            end
-                        end
-                        -- handle ignores
-                        local ign = buffs.ignored_debuffs[debuff.en]
-                        if not ((ign ~= nil) and ((ign.all == true) or ((ign[targ] ~= nil) and (ign[targ] == true)))) then
-                            dbq:enqueue('debuff', spell, targ, debuff, ' ('..debuff.en..')')
-                        end
+		for id, info in pairs(debuffs) do
+			if not info.aura then
+				local debuff = res.buffs[id]
+				local removalSpellName = debuff_map[debuff.en]
+				atcd(123,'Removal debuff enqueue -  ID: ' .. id .. ' Target: ' .. targ)
+				if (removalSpellName ~= nil) then
+					if (info.attempted == nil) or ((now - info.attempted) >= 3) then
+						local spell = res.spells:with('en', removalSpellName)
+						if healer:can_use(spell) and ffxi.target_is_valid(spell, targ) and id ~= 20 then
+							 -- handle AoE
+							if settings.aoe_na then
+								local numAccessionRange = buffs.getRemovableDebuffCountAroundTarget(targ, 10, id)
+								if numAccessionRange >= 3 and accessionable:contains(spell.en) then
+									spell.accession = true
+								end
+							end
+							-- handle ignores
+							local ign = buffs.ignored_debuffs[debuff.en]
+							if not buffs.perm_ignored_debuffs:contains(tonumber(id)) and not ((ign ~= nil) and ((ign.all == true) or ((ign[targ] ~= nil) and (ign[targ] == true)))) then
+								dbq:enqueue('debuff', spell, targ, debuff, ' ('..debuff.en..')')
+							end
+						end
 					end
+				else
+					buffs.debuffList[targ][id] = nil
 				end
-			else
-				buffs.debuffList[targ][id] = nil
-			end
-        end -- for
+			end -- if aura
+		end -- for
     end -- for
     return dbq:getQueue()
 end -- function
@@ -143,11 +154,22 @@ end -- function
 --==============================================================================
 
 
-function buffs.registerNewBuff(args, use)
+function buffs.registerNewBuff(args, use, job_name_flag)
     local targetName = args[1] and args[1] or ''
     table.remove(args, 1)
     local arg_string = table.concat(args,' ')
     local snames = arg_string:split(',')
+	
+	if job_name_flag then
+		if utils.getPlayerNameFromJob(targetName) then
+			table.insert(args,1,utils.getPlayerNameFromJob(targetName))
+			buffs.registerNewBuff(args, use)
+		else
+			atc('Unable to find buff JOB target: '..targetName:upper())
+		end
+		return
+	end
+	
     for index,sname in pairs(snames) do
         if (tostring(index) ~= 'n') then
             buffs.registerNewBuffName(targetName, sname:trim(), use)
@@ -158,7 +180,6 @@ end
 
 function buffs.registerNewBuffName(targetName, bname, use)
 
-	local song_map = S{"Army's Paeon","Army's Paeon II","Army's Paeon III","Army's Paeon IV","Army's Paeon V","Army's Paeon VI","Army's Paeon VII","Army's Paeon VIII","Mage's Ballad","Mage's Ballad II","Mage's Ballad III","Knight's Minne","Knight's Minne II","Knight's Minne III","Knight's Minne IV","Knight's Minne V","Valor Minuet","Valor Minuet II","Valor Minuet III","Valor Minuet IV","Valor Minuet V","Sword Madrigal","Blade Madrigal","Hunter's Prelude","Archer's Prelude","Sheepfoe Mambo","Dragonfoe Mambo","Fowl Aubade","Herb Pastoral","Shining Fantasia","Scop's Operetta","Puppet's Operetta","Jester's Operetta","Gold Capriccio","Devotee Serenade","Warding Round","Goblin Gavotte","Cactuar Fugue","Protected Aria","Advancing March","Victory March","Honor March","Sinewy Etude","Dextrous Etude","Vivacious Etude","Quick Etude","Learned Etude","Spirited Etude","Enchanting Etude","Herculean Etude","Uncanny Etude","Vital Etude","Swift Etude","Sage Etude","Logical Etude","Bewitching Etude","Fire Carol","Ice Carol","Wind Carol","Earth Carol","Lightning Carol","Water Carol","Light Carol","Dark Carol","Fire Carol II","Ice Carol II","Wind Carol II","Earth Carol II","Lightning Carol II","Water Carol II","Light Carol II","Dark Carol II","Goddess's Hymnus","Chocobo Mazurka","Raptor Mazurka","Foe Sirvente","Adventurer's Dirge","Sentinel's Scherzo",}
     if bname:lower() ~= 'all' then
 		spellName = utils.formatActionName(bname)
 	end
@@ -166,7 +187,7 @@ function buffs.registerNewBuffName(targetName, bname, use)
         atc('Error: Unable to parse spell name')
         return
     end
-    
+	
     local me = windower.ffxi.get_player()
     local target = ffxi.get_target(targetName)
     if target == nil and targetName:lower() ~= 'everyone' then
@@ -178,9 +199,10 @@ function buffs.registerNewBuffName(targetName, bname, use)
 		atc('Unable to cast or invalid: '..spellName)
 		return
     end
+	
 	-- Song override, no check targets.
     if target and action and not ffxi.target_is_valid(action, target) and targetName:lower() ~= 'everyone' and bname:lower() ~= 'all' then
-		if not(song_map:contains(spellName)) then
+		if not (spells_songBuffs:contains(res.spells:with('en', spellName).id)) then
 			atc(target.name..' is an invalid target for '..action.en)
 			return
 		else
@@ -233,15 +255,25 @@ function buffs.registerNewBuffName(targetName, bname, use)
     end
 end
 
-
 function buffs.registerIgnoreDebuff(args, ignore)
-    local targetName = args[1] and args[1] or ''
+	local targetName = args[1] and args[1] or ''
     table.remove(args, 1)
     local arg_string = table.concat(args,' ')
-    
+	local snames = arg_string:split(',')
+	
+	for index,sname in pairs(snames) do
+        if (tostring(index) ~= 'n') then
+            buffs.registerIgnoreDebuffName(targetName, sname:trim(), ignore)
+        end
+    end
+
+end
+
+function buffs.registerIgnoreDebuffName(targetName, bname, ignore)
+     
     local msg = ignore and 'ignore' or 'stop ignoring'
     
-    local dbname = debuff_casemap[arg_string:lower()]
+    local dbname = debuff_casemap[bname:lower()]
     if (dbname ~= nil) then
         if S{'always','everyone','all'}:contains(targetName) then
             buffs.ignored_debuffs[dbname] = {['all']=ignore}
@@ -262,7 +294,7 @@ function buffs.registerIgnoreDebuff(args, ignore)
             end
         end
     else
-        atc(123,'Error: Invalid debuff name to '..msg..': '..arg_string)
+        atc(123,'Error: Invalid debuff name to '..msg..': '..bname)
     end
 end
 
@@ -340,6 +372,20 @@ end
 --          Buff Tracking Functions
 --==============================================================================
 
+--Aura
+function buffs.register_debuff_aura_status(target, debuff, aura_flag)
+	buffs.auras[target] = buffs.auras[target] or {}
+	local auras_tbl = buffs.auras[target]
+	auras_tbl[debuff] = {aura_status = aura_flag}
+end
+
+
+function buffs.remove_debuff_aura(target, debuff)
+	if buffs.auras[target] and buffs.auras[target][debuff] then
+		buffs.auras[target][debuff] = nil
+	end
+end
+
 
 --[[
     Register a debuff gain/loss on the given target, optionally with the action
@@ -349,7 +395,7 @@ function buffs.register_debuff(target, debuff, gain, action)
     debuff = utils.normalize_action(debuff, 'buffs')
     
     if debuff == nil then
-        return              --hack
+        return
     end
     
     if debuff.enn == 'slow' then
@@ -379,7 +425,14 @@ function buffs.register_debuff(target, debuff, gain, action)
                 end
             end
         end
-        debuff_tbl[debuff.id] = {landed = os.clock()}
+		
+		local aura_flag = buffs.auras[tname] and buffs.auras[tname][debuff.id] and buffs.auras[tname][debuff.id].aura_status or false
+		if buffs.gaol_auras:contains(debuff.id) then
+			aura_flag = buffs.auras[tname] and buffs.auras[tname][debuff.id] and buffs.auras[tname][debuff.id].aura_status or true
+		end
+
+		debuff_tbl[debuff.id] = {landed = os.clock(), aura = aura_flag}
+		
         if is_enemy and hb.modes.mob_debug then
             atc(('Detected %sdebuff: %s %s %s [%s]'):format(msg, debuff.en, rarr, tname, tid))
         end
@@ -394,22 +447,6 @@ function buffs.register_debuff(target, debuff, gain, action)
 end
 
 
--- local last_action = {}
--- function register_action(atype, aid)
-    -- last_action.type = atype
-    -- last_action.id = aid
--- end
-
--- windower.register_event('gain buff', function(buff_id)
-    -- atcfs('Gained: %s %s [Type: %s]', buff_id, res.buffs[buff_id].en, last_action.type)
-    -- if last_action.type == 'Geomancy' then
-        -- buffs.action_buff_map[last_action.type] = buffs.action_buff_map[last_action.type] or {}
-        -- if buffs.action_buff_map[last_action.type][last_action.id] == nil then
-            -- buffs.action_buff_map[last_action.type][last_action.id] = buff_id
-            -- buffs.action_buff_map:save(true)
-        -- end
-    -- end
--- end)
 function buffs.process_buff_packet(target_id, status)
     if not target_id then return end
     local target = windower.ffxi.get_mob_by_id(target_id)
@@ -420,8 +457,6 @@ end
 
 function buffs.register_buff(target, buff, gain, action)
     if not target then return end
---local function _register_buff(target, buff, gain, action)
-    --atcfs("%s -> %s [gain: %s]", buff, target.name, gain)
     if not isstr(buff) then
         if buff.is_indi or buff.is_geo then
             buffs.buffList[target.name] = buffs.buffList[target.name] or {}
@@ -484,8 +519,6 @@ function buffs.register_buff(target, buff, gain, action)
         end
     end 
 end
---buffs.register_buff = traceable(_register_buff)
-
 
 function buffs.resetDebuffTimers(player)
     if (player == nil) then

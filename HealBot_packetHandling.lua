@@ -11,7 +11,28 @@ local messages_completing = _libs.lor.packets.messages_completing
 
 local get_action_info = _libs.lor.packets.get_action_info
 local parse_char_update = _libs.lor.packets.parse_char_update
+local packet_player = windower.ffxi.get_player()
 
+-- Credit to partyhints
+function set_registry(id, job_id)
+    if not id then return false end
+    hb.job_registry[id] = hb.job_registry[id] or 'NON'
+    job_id = job_id or 0
+    if res.jobs[job_id].ens == 'NON' and hb.job_registry[id] and not S{'NON', 'UNK'}:contains(hb.job_registry[id]) then 
+        return false
+    end
+    hb.job_registry[id] = res.jobs[job_id].ens
+    return true
+end
+
+-- Credit to partyhints
+function get_registry(id)
+    if hb.job_registry[id] then
+		return hb.job_registry[id]
+    else
+        return 'UNK'
+    end
+end
 
 --[[
     Analyze the data contained in incoming packets for useful info.
@@ -36,22 +57,29 @@ function handle_incoming_chunk(id, data)
         end
     elseif (id == 0x037) then
         healer.indi.info = parse_char_update(data)
-    elseif (id == 0x0DD) then           --Party member update
+    elseif (id == 0x0DD or id == 0x0DF or id == 0x0C8) then	--Party member update
         local parsed = packets.parse('incoming', data)
-        local pmName = parsed.Name
-        local pmJobId = parsed['Main job']
-        local pmSubJobId = parsed['Sub job']
-        hb.partyMemberInfo[pmName] = hb.partyMemberInfo[pmName] or {}
-        hb.partyMemberInfo[pmName].job = res.jobs[pmJobId].ens
-        hb.partyMemberInfo[pmName].subjob = res.jobs[pmSubJobId].ens
-        --atc('Caught party member update packet for '..parsed.Name..' | '..parsed.ID)
-    elseif (id == 0x0DF) then
-        local player = windower.ffxi.get_player()
-        local parsed = packets.parse('incoming', data)
-        if (player ~= nil) and (player.id ~= parsed.ID) then
-            local person = windower.ffxi.get_mob_by_id(parsed.ID)
-            --atc('Caught char update packet for '..person.name)
-        end
+		if parsed then
+			local playerId = parsed['ID']
+			local indexx = parsed['Index']
+			local job = parsed['Main job']
+			
+			if playerId and playerId > 0 then
+				set_registry(parsed['ID'], parsed['Main job'])
+			end
+		end
+	elseif id == 0x063 then -- Player buffs for Aura detection : Credit: elii, bp4
+		local parsed = packets.parse('incoming', data)
+		for i=1, 32 do
+			local buff = tonumber(parsed[string.format('Buffs %s', i)]) or 0
+			local time = tonumber(parsed[string.format('Time %s', i)]) or 0
+			
+			if buff > 0 and buff ~= 255 and enfeebling:contains(buff) then
+				if math.ceil(1009810800 + (time / 60) + 0x100000000 / 60 * 9) - os.time() == 5 then
+					buffs.register_debuff_aura_status(packet_player.name, buff, true)
+				end
+			end
+		end
 	elseif id == 0x076 then
         for  k = 0, 4 do
             local id = data:unpack('I', k*48+5)
@@ -69,7 +97,31 @@ function handle_incoming_chunk(id, data)
             end
             buffs.process_buff_packet(id, new_buffs_list)
         end
+	elseif id == 0x00E then
+		local packet = packets.parse('incoming', data)
+		local hp_status_flag = bit.band(packet['Mask'], 4) > 0
+		local name_flag = bit.band(packet['Mask'], 8) > 0
+		local depop_flag = bit.band(packet['Mask'], 32) > 0
+		local hidden_model = bit.band(packet['_unknown2'],2) > 0
+		local untargetable = bit.band(packet['_unknown2'],0x80000) > 0
+		
+		if (depop_flag or (hp_status_flag and (packet['HP %'] == 0 or packet['Status'] == 2 or packet['Status'] == 3))) and not hidden_model and not untargetable then
+			processDebuffMobs(packet['NPC'])
+		end
     end
+end
+
+function processDebuffMobs(mob_id)
+    local mob_ids = table.keys(offense.mobs)
+    if mob_ids and offense.mobs[mob_id] then
+		offense.mobs[mob_id] = nil
+    end
+end
+
+function removeAura(buff_id)
+	if buff_id and enfeebling:contains(buff_id) then
+		buffs.remove_debuff_aura(packet_player.name,buff_id)
+	end
 end
 
 
@@ -78,29 +130,6 @@ end
     :param ai: parsed action info
     :param set monitored_ids: the IDs of PCs that are being monitored
 --]]
--- function processMessage(ai, monitored_ids)
-    -- if monitored_ids[ai.actor_id] or monitored_ids[ai.target_id] then
-        -- if not (messages_blacklist:contains(ai.message_id)) then
-            -- local target = windower.ffxi.get_mob_by_id(ai.target_id)
-            
-            -- if hb.modes.showPacketInfo then
-                -- local actor = windower.ffxi.get_mob_by_id(ai.actor_id)
-                -- local msg = res.action_messages[ai.message_id] or {en='???'}
-                -- local params = (', '):join(tostring(ai.param_1), tostring(ai.param_2), tostring(ai.param_3))
-                -- atcfs('[0x29]Message(%s): %s { %s } %s %s | %s', ai.message_id, actor.name, params, rarr, target.name, msg.en)
-            -- end
-            
-            -- if messages_wearOff:contains(ai.message_id) then
-                -- if enfeebling:contains(ai.param_1) then
-                    -- buffs.register_debuff(target, res.buffs[ai.param_1], false)
-                -- else
-                    -- buffs.register_buff(target, res.buffs[ai.param_1], false)
-                -- end
-            -- end
-        -- end--/message ID not on blacklist
-    -- end--/monitoring actor or target
--- end
-
 function processMessage(ai, monitored_ids)
     if monitored_ids[ai.actor_id] or monitored_ids[ai.target_id] then
         if not (messages_blacklist:contains(ai.message_id)) then
@@ -288,6 +317,7 @@ function registerEffect(ai, tact, actor, target, monitored_ids)
     end--/message ID checks
 end
 
+windower.register_event('lose buff', removeAura)
 -----------------------------------------------------------------------------------------------------------
 --[[
 Copyright © 2016, Lorand

@@ -12,24 +12,20 @@ local lor_res = _libs.lor.resources
 local lc_res = lor_res.lc_res
 local ffxi = _libs.lor.ffxi
 
-
 function utils.normalize_str(str)
     return str:lower():gsub(' ', '_'):gsub('%.', '')
 end
 
 
 function utils.normalize_action(action, action_type)
-    --atcf('utils.normalize_action(%s, %s)', tostring(action), tostring(action_type))
     if istable(action) then return action end
     if action_type == nil then return nil end
     if isstr(action) then
         if tonumber(action) == nil then
             local naction = res[action_type]:with('en', action)
             if naction ~= nil then
-                --atcf("res.%s[%s] found for %s", action_type, naction.id, action)
                 return naction
             end
-            --atcf("Searching resources for normalized name for %s [%s]", action, action_type)
             return res[action_type]:with('enn', utils.normalize_str(action))
         end
         action = tonumber(action) 
@@ -79,7 +75,14 @@ function processCommand(command,...)
         --windower.send_command(('lua %s %s'):format(command, _addon.name))
 		windower.send_command(('lua %s %s'):format(command, 'healbot'))
     elseif command == 'refresh' then
-        utils.load_configs()
+	    utils.load_configs()
+	elseif command == 'show' then
+		atc('Party Debuff Table:')
+		table.vprint(buffs.debuffList)
+		atc('Aura Table:')
+		table.vprint(buffs.auras)
+		atc('Ignored Debuff Table:')
+		table.vprint(buffs.ignored_debuffs)
     elseif S{'start','on'}:contains(command) then
         hb.activate()
     elseif S{'stop','end','off'}:contains(command) then
@@ -100,6 +103,43 @@ function processCommand(command,...)
     elseif S{'enable'}:contains(command) then
         if not validate(args, 1, 'Error: No argument specified for Enable') then return end 
         disableCommand(args[1]:lower(), false)
+	 elseif S{'moblist'}:contains(command) then
+		local cmd = args[1] and args[1]:lower() or (offense.moblist.active and 'off' or 'resume')
+		if S{'off','end','false','pause'}:contains(cmd) then
+			offense.moblist.active = false
+			atc('Moblist debuffing is now off.')
+		elseif S{'resume','on'}:contains(cmd) then
+			offense.moblist.active = true
+			atc('Moblist debuffing is now active.')
+		elseif cmd == 'add' and args[2] then
+			local mob_string = args[2]:lower():capitalize()
+			offense.moblist.mobs:add(mob_string)
+			atc('Added mob to debuff list: '..mob_string)
+		elseif cmd == 'remove' and args[2] then
+			local mob_string = args[2]:lower():capitalize()
+			if offense.moblist.mobs:contains(mob_string) then
+				offense.moblist.mobs:remove(mob_string)
+				atc('Removed mob to debuff list: '..mob_string)
+				local show_moblist_names = ''
+				for k,v in pairs(offense.moblist.mobs) do
+					show_moblist_names = show_moblist_names..'['..k..']'
+				end
+				atc('Debuff Mob List: '..show_moblist_names)
+			else
+				atc('Error: Mob not in current list')
+			end
+		elseif (cmd == 'show' or cmd == 'list') and offense.moblist.mobs then
+			local show_moblist_names = ''
+			for k,v in pairs(offense.moblist.mobs) do
+				show_moblist_names = show_moblist_names..'['..k..']'
+			end
+			atc('Debuff Mob List: '..show_moblist_names)
+		elseif cmd == 'clear' or cmd == 'reset' then
+			offense.moblist.mobs:clear()
+			atc('Debuff Mob List cleared')
+		else
+			atc(123,'Error: No parameter - [add / remove / on / off / clear] specified.')
+		end
     elseif S{'assist','as'}:contains(command) then
         local cmd = args[1] and args[1]:lower() or (offense.assist.active and 'off' or 'resume')
         if S{'off','end','false','pause'}:contains(cmd) then
@@ -154,6 +194,12 @@ function processCommand(command,...)
 					atc('ERROR: Cannot use sametarget to attack/engage if using [nolock] or not [attack/engage].')
 				end
             end
+		elseif S{'job','j'}:contains(cmd) then
+			if args[2] then
+				offense.register_assistee(args[2],true)
+			else
+				atc('ERROR: No JOB specified.')
+			end
         else    --args[1] is guaranteed to have a value if this is reached
             offense.register_assistee(args[1])
         end
@@ -218,12 +264,32 @@ function processCommand(command,...)
         elseif S{'rm','remove'}:contains(cmd) then
             utils.register_offensive_debuff(table.slice(args, 2), true)
         elseif S{'ls','list'}:contains(cmd) then
-            pprint_tiered(offense.debuffs)
+			local debuff_print = ''
+			for k,v in pairs(offense.debuffs) do
+				debuff_print = debuff_print..offense.debuffs[k].spell.en..','
+			end
+			atc('Debuffs: '..debuff_print)
         else
             if S{'use','set'}:contains(cmd) then
                 table.remove(args, 1)
             end
             utils.register_offensive_debuff(args, false)
+        end
+	elseif S{'mldebuff', 'mldb'}:contains(command) then
+		local cmd = args[1] and args[1]:lower() 
+        if S{'rm','remove'}:contains(cmd) then
+            utils.register_offensive_debuff(table.slice(args, 2), true, true)
+        elseif S{'ls','list'}:contains(cmd) then
+            local debuff_print = ''
+			for k,v in pairs(offense.moblist.debuffs) do
+				debuff_print = debuff_print..offense.moblist.debuffs[k].spell.en..','
+			end
+			atc('Debuffs for Moblist: '..debuff_print)
+        else
+            if S{'use','set'}:contains(cmd) then
+                table.remove(args, 1)
+            end
+            utils.register_offensive_debuff(args, false, true)
         end
     elseif command == 'mincure' then
         if not validate(args, 1, 'Error: No argument specified for minCure') then return end
@@ -316,8 +382,12 @@ function processCommand(command,...)
         end
     elseif command == 'buff' then
         buffs.registerNewBuff(args, true)
+	elseif command == 'buffjob' then
+	    buffs.registerNewBuff(args, true, true)
     elseif S{'cancelbuff','nobuff'}:contains(command) then
         buffs.registerNewBuff(args, false)
+	elseif S{'cancelbuffjob','nobuffjob'}:contains(command) then
+        buffs.registerNewBuff(args, false, true)
     elseif S{'bufflist','bl'}:contains(command) then
         if not validate(args, 1, 'Error: No argument specified for BuffList') then return end
         utils.apply_bufflist(args)
@@ -346,6 +416,15 @@ function processCommand(command,...)
                 atc('Now following '..settings.follow.target..'.')
             else
                 atc(123,'Error: Unable to resume follow - no target set')
+            end
+		elseif S{'job', 'j'}:contains(cmd) then
+		    local pname = utils.getPlayerNameFromJob(args[2])
+			if (pname ~= nil) then
+                settings.follow.target = pname
+                settings.follow.active = true
+                atc('Now following '..settings.follow.target..'.')
+            else
+                atc(123,'Error: Invalid JOB provided as a follow target: '..tostring(args[2]))
             end
         else    --args[1] is guaranteed to have a value if this is reached
             local pname = utils.getPlayerName(args[1])
@@ -421,23 +500,35 @@ end
 utils.get_player_id = _libs.lor.advutils.scached(_get_player_id)
 
 
-function utils.register_offensive_debuff(args, cancel)
+function utils.register_offensive_debuff(args, cancel, mob_debuff_list_flag)
     local argstr = table.concat(args,' ')
     local snames = argstr:split(',')
     for index,sname in pairs(snames) do
         if (tostring(index) ~= 'n') then
             if sname:lower() == 'all' and cancel then
-                atcf(123,'Removing all debuffs on mobs.')
-                for k,v in pairs(offense.debuffs) do
-                    atcf('Removing debuff: ' ..offense.debuffs[k].spell.enn)
-                    offense.debuffs[k] = nil
-                end
+				if mob_debuff_list_flag then
+				atcf(123,'Removing all debuffs from moblist debuff list.')
+					for k,v in pairs(offense.moblist.debuffs) do
+						atcf('Removing debuff: ' ..offense.moblist.debuffs[k].spell.enn)
+						offense.moblist.debuffs[k] = nil
+					end
+				else
+					atcf(123,'Removing all debuffs on mobs.')
+					for k,v in pairs(offense.debuffs) do
+						atcf('Removing debuff: ' ..offense.debuffs[k].spell.enn)
+						offense.debuffs[k] = nil
+					end
+				end
             else
                 local spell_name = utils.formatActionName(sname:trim())
                 local spell = lor_res.action_for(spell_name)
                 if (spell ~= nil) then
                     if healer:can_use(spell) then
-                        offense.maintain_debuff(spell, cancel)
+						if mob_debuff_list_flag then
+							offense.maintain_debuff(spell, cancel, true)
+						else
+							offense.maintain_debuff(spell, cancel)
+						end
                     else
                         atcfs(123,'Error: Unable to cast %s', spell.en)
                     end
@@ -655,6 +746,21 @@ function utils.getPlayerName(name)
     return nil
 end
 
+function utils.getPlayerNameFromJob(job)
+	local target
+	for k, v in pairs(windower.ffxi.get_party()) do
+		if type(v) == 'table' and v.mob ~= nil and v.mob.in_party then
+			if ((job:lower() == 'tank' and S{'PLD','RUN'}:contains(get_registry(v.mob.id))) or (job:lower() ~= 'tank' and get_registry(v.mob.id):lower() == job:lower())) then
+				target = v.name
+			end
+		end
+	end
+    if target ~= nil then
+        return target
+    end
+    return nil
+end
+
 function num_strats()
     local p = windower.ffxi.get_player()
     local sch_level = 0
@@ -867,9 +973,11 @@ function utils.update_settings(loaded)
 end
 
 
---bard_status = texts.new(display_box(),settings.box,settings)
 function utils.refresh_textBoxes()
 	local OurReso = windower.get_windower_settings()
+	local X_action_queue = OurReso.x_res - 725
+	local X_mon_box = OurReso.x_res - 305
+
     local boxes = {'actionQueue','moveInfo','actionInfo','montoredBox'}
     for _,box in pairs(boxes) do
         local bs = settings.textBoxes[box]
@@ -877,36 +985,12 @@ function utils.refresh_textBoxes()
 		if (box == 'actionInfo' or box == 'moveInfo') then
 			bst = {pos={x=bs.x, y=bs.y}, bg={alpha=125, blue=0, green=0,red=0,visible=true}, stroke={alpha=255, blue=0, green=0, red=0, width=0}}
 		elseif box == 'montoredBox' then
-			if (OurReso.x_res == 1600) then
-				bst = {pos={x=bs.x, y=bs.y}, bg=settings.textBoxes.bg, stroke={alpha=255, blue=0, green=0, red=0, width=0}}
-			elseif (OurReso.x_res == 1400) then
-				bst = {pos={x=-190, y=420}, bg=settings.textBoxes.bg, stroke={alpha=255, blue=0, green=0, red=0, width=0}}
-			elseif OurReso.x_res == 1275 then
-				bst = {pos={x=-235, y=420}, bg=settings.textBoxes.bg, stroke={alpha=255, blue=0, green=0, red=0, width=0}}
-			elseif OurReso.x_res == 1000 then
-				bst = {pos={x=bs.x, y=bs.y}, bg=settings.textBoxes.bg, stroke={alpha=255, blue=0, green=0, red=0, width=0}}
-			elseif OurReso.x_res == 900 then
-				bst = {pos={x=bs.x, y=bs.y}, bg=settings.textBoxes.bg, stroke={alpha=255, blue=0, green=0, red=0, width=0}}
-			else
-				bst = {pos={x=bs.x, y=bs.y}, bg=settings.textBoxes.bg, stroke={alpha=255, blue=0, green=0, red=0, width=0}}
-			end
+			bst = {pos={x=X_mon_box, y=bs.y}, bg=settings.textBoxes.bg, stroke={alpha=255, blue=0, green=0, red=0, width=0}}
 		elseif box == 'actionQueue' then
-			if (OurReso.x_res == 1600) then
-				bst = {pos={x=bs.x, y=bs.y}, bg=settings.textBoxes.bg, stroke={alpha=255, blue=0, green=0, red=0, width=0}}
-			elseif (OurReso.x_res == 1400) then
-				bst = {pos={x=-155, y=120}, bg=settings.textBoxes.bg, stroke={alpha=255, blue=0, green=0, red=0, width=0}}
-			elseif OurReso.x_res == 1275 then
-				bst = {pos={x=-140, y=125}, bg=settings.textBoxes.bg, stroke={alpha=255, blue=0, green=0, red=0, width=0}}
-			elseif OurReso.x_res == 1000 then
-				bst = {pos={x=bs.x, y=bs.y}, bg=settings.textBoxes.bg, stroke={alpha=255, blue=0, green=0, red=0, width=0}}
-			elseif OurReso.x_res == 900 then
-				bst = {pos={x=bs.x, y=bs.y}, bg=settings.textBoxes.bg, stroke={alpha=255, blue=0, green=0, red=0, width=0}}
-			else
-				bst = {pos={x=bs.x, y=bs.y}, bg=settings.textBoxes.bg, stroke={alpha=255, blue=0, green=0, red=0, width=0}}
-			end
+			bst = {pos={x=X_action_queue, y=bs.y}, bg=settings.textBoxes.bg, stroke={alpha=255, blue=0, green=0, red=0, width=0}}
 		end
 	
-        bst.flags = {right=(bs.x < 0), bottom=(bs.y < 0)}
+        --bst.flags = {right=(bs.x < 0), bottom=(bs.y < 0)}
         if (bs.font ~= nil) then
             bst.text = {font=bs.font}
         end
