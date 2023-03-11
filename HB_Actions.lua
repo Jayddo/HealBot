@@ -17,10 +17,7 @@ end
 local function local_queue_insert(action, target)
 	if (tostring(action) ~= nil) and (tostring(target) ~= nil) then
 		actions.queue:append(tostring(action)..' → '..tostring(target))
-	else
-	
 	end
-    --actions.queue:append(tostring(action)..' → '..tostring(target))
 end
 
 local function local_queue_disp()
@@ -35,7 +32,6 @@ end
 function actions.get_defensive_action()
 	local action = {}
 	local player = player or windower.ffxi.get_player()
-	--local targets = hb.getMonitoredPlayers()
 	
 	if (not settings.disable.cure) then
 		local cureq = CureUtils.get_cure_queue()
@@ -67,7 +63,7 @@ function actions.get_defensive_action()
 				else
 					dbact_target = windower.ffxi.get_mob_by_name(dbact.name)
 					local_queue_insert(dbact.action.en, dbact.name)
-					if (action.debuff == nil) and healer:in_casting_range(dbact.name) and healer:ready_to_use(dbact.action) and not(dbact_target.hpp == 0) and dbact.debuff.id ~= 20 and (player.vitals.mp >= dbact.action.mp_cost) then
+					if (action.debuff == nil) and healer:in_casting_range(dbact.name) and healer:ready_to_use(dbact.action) and not(dbact_target.hpp == 0) then
 						action.debuff = dbact
 					end
 				end
@@ -88,7 +84,7 @@ function actions.get_defensive_action()
 				local_queue_insert(bact.action.en, bact.name)
 			end
             
-			if (action.buff == nil) and healer:in_casting_range(bact.name) and healer:ready_to_use(bact.action) and not(bact_target.hpp == 0) and (player.vitals.mp >= bact.action.mp_cost) then
+			if (action.buff == nil) and healer:in_casting_range(bact.name) and healer:ready_to_use(bact.action) and not(bact_target.hpp == 0) then
 				action.buff = bact
 			end
 		end
@@ -144,8 +140,11 @@ function actions.take_action(player, partner, targ)
         healer:take_action(action)
 		--Debuffs with moblist specified, has same priority as healing or buffing - will alternate.
 		if offense.moblist.active and offense.moblist.mobs then
-			build_mob_debuff_list(player, offense.moblist.mobs)
-			return true
+			actions.build_mob_debuff_list(player, offense.moblist.mobs)
+		end
+		--Dispel, has same priority as healing or buffing - will alternate.
+		if offense.dispel.active and offense.dispel.mobs then
+			actions.build_dispel_list(player, offense.dispel.mobs)
 		end
 		return true
     --Otherwise, there may be an offensive action(Debuffing or engage to attack)
@@ -164,11 +163,14 @@ function actions.take_action(player, partner, targ)
 						return true
 					--Debuff actions with lock on target
 					else
-						if not check_moblist_mob(player.target_index) then
+						if not actions.check_moblist_mob(player.target_index) then
 							healer:take_action(actions.get_offensive_action(player, partner), '<t>')
 						end
 						if offense.moblist.active and offense.moblist.mobs then 
-							build_mob_debuff_list(player, offense.moblist.mobs)
+							actions.build_mob_debuff_list(player, offense.moblist.mobs)
+						end
+						if offense.dispel.active and offense.dispel.mobs then
+							actions.build_dispel_list(player, offense.dispel.mobs)
 						end
 						return true
 					end
@@ -179,16 +181,19 @@ function actions.take_action(player, partner, targ)
 						return true
 					--Assist + Debuffs with mob id, requires gearswap
 					elseif (partner_engaged and partner.target_index and offense.assist.nolock) then
-						if not check_moblist_mob(partner.target_index) then
+						if not actions.check_moblist_mob(partner.target_index) then
 							healer:take_action(actions.get_offensive_action(player, partner), windower.ffxi.get_mob_by_index(partner.target_index).id)
 						end
 						if (hb.modes.independent and (self_engaged or (player.target_locked and utils.isMonster(player.target_index)))) then
-							if not check_moblist_mob(player.target_index) then
+							if not actions.check_moblist_mob(player.target_index) then
 								healer:take_action(actions.get_offensive_action(player, nil), '<t>')
 							end
 						end
 						if offense.moblist.active and offense.moblist.mobs then 
-							build_mob_debuff_list(player, offense.moblist.mobs)
+							actions.build_mob_debuff_list(player, offense.moblist.mobs)
+						end
+						if offense.dispel.active and offense.dispel.mobs then
+							actions.build_dispel_list(player, offense.dispel.mobs)
 						end
 						return true
 					--Switches target to same as partner
@@ -199,26 +204,43 @@ function actions.take_action(player, partner, targ)
 				end
 			-- Debuff without having assist, either engaged or target locked.
             elseif (hb.modes.independent and (self_engaged or (player.target_locked and utils.isMonster(player.target_index)))) then
-				if not check_moblist_mob(player.target_index) then
+				if not actions.check_moblist_mob(player.target_index) then
 					healer:take_action(actions.get_offensive_action(player, nil), '<t>')
 				end
 				if offense.moblist.active and offense.moblist.mobs then 
-					build_mob_debuff_list(player, offense.moblist.mobs)
+					actions.build_mob_debuff_list(player, offense.moblist.mobs)
+				end
+				if offense.dispel.active and offense.dispel.mobs then
+					actions.build_dispel_list(player, offense.dispel.mobs)
 				end
 				return true
             end
 		end
 		--Debuffs with mobslist specified within debuffing block
 		if offense.moblist.active and offense.moblist.mobs then
-			build_mob_debuff_list(player, offense.moblist.mobs)
-			return true
+			actions.build_mob_debuff_list(player, offense.moblist.mobs)
         end
+		local dispel_battle_target = windower.ffxi.get_mob_by_target('bt') or nil
+		if offense.dispel.active and offense.dispel.mobs then
+			actions.build_dispel_list(player, offense.dispel.mobs)
+		end
+		return true
     end
 	return false
 end
 
+--Builder for multiple dispel targets
+function actions.build_dispel_list(player, moblist)
+	for mob_id,mob_debuffs in pairs(moblist) do
+		local dispel_target = windower.ffxi.get_mob_by_id(mob_id) and windower.ffxi.get_mob_by_id(mob_id).claim_id or nil
+		if utils.check_claim_id(dispel_target) then
+			healer:take_action(actions.get_dispel_action(player, mob_id), mob_id)
+		end
+	end
+end
+
 --Builder for list of mobs to debuff, accounting for same name mobs.
-function build_mob_debuff_list(player, moblist)
+function actions.build_mob_debuff_list(player, moblist)
 	mob_names = T(windower.ffxi.get_mob_list()):filter(set.contains+{moblist})
 	for mob_index,mob_name in pairs(mob_names) do
 		if utils.isMonster(mob_index) then
@@ -227,7 +249,7 @@ function build_mob_debuff_list(player, moblist)
 	end
 end
 
-function check_moblist_mob(target_index)
+function actions.check_moblist_mob(target_index)
 	if not offense.moblist.mobs then return false end
 	local target_name = windower.ffxi.get_mob_by_index(target_index).name
 	
@@ -254,7 +276,7 @@ function actions.get_offensive_action(player, partner)
     while not dbuffq:empty() do
         local dbact = dbuffq:pop()
         local_queue_insert(dbact.action.en, target.name)
-        if (action.db == nil) and healer:in_casting_range(target) and healer:ready_to_use(dbact.action) and (player.vitals.mp >= dbact.action.mp_cost) then
+        if (action.db == nil) and healer:in_casting_range(target) and healer:ready_to_use(dbact.action) then
             action.db = dbact
         end
     end
@@ -287,15 +309,9 @@ function actions.get_offensive_action(player, partner)
     elseif (not settings.disable.spam) and settings.spam.active and (settings.spam.name ~= nil) then
         local spam_action = lor_res.action_for(settings.spam.name)
         if (target.hpp > 0) and healer:ready_to_use(spam_action) and healer:in_casting_range('<t>') then
-            local _p_ok = (player.vitals.mp >= spam_action.mp_cost)
-            if spam_action.tp_cost ~= nil then
-                _p_ok = (_p_ok and (player.vitals.tp >= spam_action.tp_cost))
-            end
-            if _p_ok then
-                return {action=spam_action,name='<t>'}
-            else
-                atcd('MP/TP not ok for '..settings.spam.name)
-            end
+			return {action=spam_action,name='<t>'}
+        else
+			atcd('MP/TP not ok for '..settings.spam.name)
         end
     end
     
@@ -315,7 +331,7 @@ function actions.get_offensive_action_list(player, mob_index)
     while not dbuffq:empty() do
         local dbact = dbuffq:pop()
         local_queue_insert(dbact.action.en, target.name)
-        if (action.db == nil) and healer:in_casting_range(target) and healer:ready_to_use(dbact.action) and (player.vitals.mp >= dbact.action.mp_cost) then
+        if (action.db == nil) and healer:in_casting_range(target) and healer:ready_to_use(dbact.action) then
             action.db = dbact
         end
     end
@@ -326,6 +342,29 @@ function actions.get_offensive_action_list(player, mob_index)
     end
    
     atcd('get_offensive_action: no offensive actions to perform')
+	return nil
+end
+
+function actions.get_dispel_action(player, mob_id)
+	player = player or windower.ffxi.get_player()
+	local target = (windower.ffxi.get_mob_by_id(mob_id))
+    if target == nil or target.hpp == 0 then return nil end
+    local action = {}
+    
+    --Prioritize debuffs over nukes/ws
+    local dbuffq = offense.getDispelQueue(player, target)
+    while not dbuffq:empty() do
+        local dbact = dbuffq:pop()
+        local_queue_insert(dbact.action.en, target.name)
+        if (action.db == nil) and healer:in_casting_range(target) and healer:ready_to_use(dbact.action) then
+            action.db = dbact
+        end
+    end
+    
+    local_queue_disp()
+    if action.db ~= nil then
+        return action.db
+    end
 	return nil
 end
 

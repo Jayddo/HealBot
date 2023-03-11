@@ -72,17 +72,34 @@ function processCommand(command,...)
     local args = map(windower.convert_auto_trans, {...})
     
     if S{'reload','unload'}:contains(command) then
-        --windower.send_command(('lua %s %s'):format(command, _addon.name))
 		windower.send_command(('lua %s %s'):format(command, 'healbot'))
     elseif command == 'refresh' then
 	    utils.load_configs()
-	elseif command == 'show' then
-		atc('Party Debuff Table:')
-		table.vprint(buffs.debuffList)
-		atc('Aura Table:')
-		table.vprint(buffs.auras)
-		atc('Ignored Debuff Table:')
-		table.vprint(buffs.ignored_debuffs)
+	elseif S{'show','sh'}:contains(command) then
+		if (args[1] and args[1]:lower() == 'party') or not args[1] then
+			atc('Party Debuff Table:')
+			table.vprint(buffs.debuffList)
+		end
+		if (args[1] and args[1]:lower() == 'aura') or not args[1] then
+			atc('Aura Table:')
+			table.vprint(buffs.auras)
+		end
+		if (args[1] and args[1]:lower() == 'ignore') or not args[1] then
+			atc('Ignored Debuff Table:')
+			table.vprint(buffs.ignored_debuffs)
+		end
+		if (args[1] and args[1]:lower() == 'offense') or not args[1] then
+			atc('Offense Table:')
+			table.vprint(offense.mobs)
+		end
+		if (args[1] and args[1]:lower() == 'debuff') or not args[1] then
+			atc('Offense debuffs table:')
+			table.vprint(offense.debuffs)
+		end
+		if (args[1] and args[1]:lower() == 'dispel') or not args[1] then
+			atc('Dispel table:')
+			table.vprint(offense.dispel.mobs)
+		end
     elseif S{'start','on'}:contains(command) then
         hb.activate()
     elseif S{'stop','end','off'}:contains(command) then
@@ -92,11 +109,20 @@ function processCommand(command,...)
         local cmd = args[1] and args[1]:lower() or (settings.aoe_na and 'off' or 'resume')
         if S{'off','end','false','pause'}:contains(cmd) then
             settings.aoe_na = false
-            atc('AOE is now OFF.')
+            atc('AOE is now off.')
         else
             settings.aoe_na = true
-			atc('AOE is ENABLED.')
+			atc('AOE is active.')
         end
+	elseif S{'dispel'}:contains(command) then
+		local cmd = args[1] and args[1]:lower() or (offense.dispel.active and 'off' or 'resume')
+		if S{'off','end','false','pause'}:contains(cmd) then
+			offense.dispel.active = false
+			atc('Auto Dispel is now off.')
+		elseif S{'resume','on'}:contains(cmd) then
+			offense.dispel.active = true
+			atc('Auto Dispel is now active.')
+		end
     elseif S{'disable'}:contains(command) then
         if not validate(args, 1, 'Error: No argument specified for Disable') then return end
         disableCommand(args[1]:lower(), true)
@@ -791,9 +817,20 @@ end
 
 function utils.isMonster(mob_index)
 	local mob_in_question = windower.ffxi.get_mob_by_index(mob_index)
-	if mob_in_question and mob_in_question.is_npc and mob_in_question.id%4096<=2046 and mob_in_question.valid_target then
+	if mob_in_question and mob_in_question.is_npc and mob_in_question.spawn_type == 16 and mob_in_question.valid_target then
 		return true
 	end
+end
+
+function utils.check_claim_id(id)
+	for k, v in pairs(windower.ffxi.get_party()) do
+		if type(v) == 'table' then
+			if id and v.mob and v.mob.id == id then
+				return true
+			end
+		end
+	end
+	return false
 end
 
 function utils.ready_to_use(action)

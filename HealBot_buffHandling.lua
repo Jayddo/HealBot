@@ -13,6 +13,7 @@ local buffs = {
 	perm_ignored_debuffs = S{136,137,138,139,140,141,142,540,557,558,559,560,561,562,563,564,565,566,567},
     action_buff_map = lor_settings.load('data/action_buff_map.lua'),
 	auras = {},
+	dispel_table = {}
 }
 local lc_res = _libs.lor.resources.lc_res
 local ffxi = _libs.lor.ffxi
@@ -112,20 +113,20 @@ end
 
 
 function buffs.getDebuffQueue()
-
     local dbq = ActionQueue.new()
     local now = os.clock()
     for targ, debuffs in pairs(buffs.debuffList) do
 		for id, info in pairs(debuffs) do
-			if not info.aura then
+			if info.aura == 'no' then
 				local debuff = res.buffs[id]
-				local removalSpellName = debuff_map[debuff.en]
+				local removalSpellName = buffs.handle_removalSpellName(healer, id)
 				atcd(123,'Removal debuff enqueue -  ID: ' .. id .. ' Target: ' .. targ)
 				if (removalSpellName ~= nil) then
 					if (info.attempted == nil) or ((now - info.attempted) >= 3) then
-						local spell = res.spells:with('en', removalSpellName)
-						if healer:can_use(spell) and ffxi.target_is_valid(spell, targ) and id ~= 20 then
+						local spell = removalSpellName
+						if healer:can_use(spell) and ffxi.target_is_valid(spell, targ) then
 							 -- handle AoE
+							spell.accession = false
 							if settings.aoe_na then
 								local numAccessionRange = buffs.getRemovableDebuffCountAroundTarget(targ, 10, id)
 								if numAccessionRange >= 3 and accessionable:contains(spell.en) then
@@ -148,6 +149,34 @@ function buffs.getDebuffQueue()
     return dbq:getQueue()
 end -- function
 
+--Handle removal spells for jobs
+function buffs.handle_removalSpellName(healer, id)
+	local aoe_action, single_action, debuff_map_type, removalActionName, ja_action, ma_action
+
+	if healer.main_job == 'DNC' or (healer.sub_job == 'DNC' and not (S{'WHM','SCH'}:contains(healer.main_job))) then
+		aoe_action = res.job_abilities[195]
+		single_action = res.job_abilities[190]
+		debuff_map_type = dnc_debuff_map_id
+		ja_action = true
+	else
+		aoe_action = res.spells[7]
+		single_action = res.spells[1]
+		debuff_map_type = debuff_map_id
+		ma_action = true
+	end
+	-- Check tables for debuff id
+	for list, category in debuff_map_type:it() do
+		if list:contains(tonumber(id)) then
+			removalActionName = tostring(category)
+		end
+	end
+	if removalActionName == 'Asleep' then
+		return (healer:can_use(aoe_action) and aoe_action) or (healer:can_use(single_action) and single_action) or nil
+	else
+		return (ja_action and removalActionName and res.job_abilities:with('en', removalActionName)) or (ma_action and removalActionName and res.spells:with('en', removalActionName)) or nil
+	end
+	return nil
+end
 
 --==============================================================================
 --          Input Handling Functions
@@ -386,6 +415,21 @@ function buffs.remove_debuff_aura(target, debuff)
 	end
 end
 
+--Dispel tracking
+function buffs.register_dispelable_buffs(target, debuff, gain)
+	if gain then
+		if offense.dispel.mobs and offense.dispel.mobs[target] then
+			offense.dispel.mobs[target][debuff]= {landed = os.clock()}
+		else
+			offense.dispel.mobs[target] = {}
+			offense.dispel.mobs[target][debuff]= {landed = os.clock()}
+		end
+	else -- removal
+		if offense.dispel.mobs[target] and offense.dispel.mobs[target][debuff] then
+			offense.dispel.mobs[target][debuff] = nil
+		end
+	end
+end
 
 --[[
     Register a debuff gain/loss on the given target, optionally with the action
@@ -426,9 +470,9 @@ function buffs.register_debuff(target, debuff, gain, action)
             end
         end
 		
-		local aura_flag = buffs.auras[tname] and buffs.auras[tname][debuff.id] and buffs.auras[tname][debuff.id].aura_status or false
+		local aura_flag = buffs.auras[tname] and buffs.auras[tname][debuff.id] and buffs.auras[tname][debuff.id].aura_status or 'no'
 		if buffs.gaol_auras:contains(debuff.id) then
-			aura_flag = buffs.auras[tname] and buffs.auras[tname][debuff.id] and buffs.auras[tname][debuff.id].aura_status or true
+			aura_flag = buffs.auras[tname] and buffs.auras[tname][debuff.id] and buffs.auras[tname][debuff.id].aura_status or 'yes'
 		end
 
 		debuff_tbl[debuff.id] = {landed = os.clock(), aura = aura_flag}
@@ -502,7 +546,8 @@ function buffs.register_buff(target, buff, gain, action)
         end
     end
     local buff_tbl = is_enemy and offense.mobs[tid] or buffs.buffList[tname]
-    if is_enemy and offense.dispel[bkey] or buff_tbl[bkey] then
+    --if is_enemy and offense.dispel[bkey] or buff_tbl[bkey] then
+	if buff_tbl[bkey] then
         buff_tbl[bkey] = buff_tbl[bkey] or {}
         if gain then
             buff_tbl[bkey].landed = os.clock()

@@ -34,6 +34,39 @@ function get_registry(id)
     end
 end
 
+-- Track mob buffs for dispel action
+function handle_dispel_action(act)
+	for _,targ in pairs(act.targets) do
+		local target = windower.ffxi.get_mob_by_id(targ.id)
+		local valid_target = act.valid_target
+		local actor = windower.ffxi.get_mob_by_id(act.actor_id)		
+		local category = act.category  
+		local param = act.param
+		local targets = act.targets
+		local action_buff = targets[1].actions[1].param
+	
+		if target and (target.is_npc and targets[1].id == actor.id) and target.name ~= healer.name and S{4,11}:contains(category) then 
+			if category == 11 then	-- Monster abilitiies
+				if res.monster_abilities[param] and utils.isMonster(target.index) then 
+					if action_buff ~= 0 and not special_mob_ja[param] and not (dispel_buffs_blacklist:contains(action_buff)) then
+						buffs.register_dispelable_buffs(target.id, action_buff, true)
+					elseif special_mob_ja[param] then	-- Special abilitiies that don't return buff value.
+						for _,mob_buff in pairs(special_mob_ja[param]) do
+							buffs.register_dispelable_buffs(target.id, mob_buff, true)
+						end
+					end
+				end
+			elseif category == 4 then	-- Monster spells
+				if res.spells[param] and utils.isMonster(target.index) then
+					if action_buff ~= 0 and not (dispel_buffs_blacklist:contains(action_buff)) then
+						buffs.register_dispelable_buffs(target.id, action_buff, true)
+					end
+				end
+			end
+		end
+	end
+end
+
 --[[
     Analyze the data contained in incoming packets for useful info.
     :param int id: packet ID
@@ -74,9 +107,11 @@ function handle_incoming_chunk(id, data)
 			local buff = tonumber(parsed[string.format('Buffs %s', i)]) or 0
 			local time = tonumber(parsed[string.format('Time %s', i)]) or 0
 			
-			if buff > 0 and buff ~= 255 and enfeebling:contains(buff) then
-				if math.ceil(1009810800 + (time / 60) + 0x100000000 / 60 * 9) - os.time() == 5 then
-					buffs.register_debuff_aura_status(packet_player.name, buff, true)
+			if buff > 0 and buff ~= 255 and buff ~= 15 and enfeebling:contains(buff) then
+				if math.ceil(1009810800 + (time / 60) + 0x100000000 / 60 * 9) - os.time() <= 5 then
+					buffs.register_debuff_aura_status(packet_player.name, buff, 'yes')
+				else
+					buffs.register_debuff_aura_status(packet_player.name, buff, 'no')
 				end
 			end
 		end
@@ -116,9 +151,12 @@ function processDebuffMobs(mob_id)
     if mob_ids and offense.mobs[mob_id] then
 		offense.mobs[mob_id] = nil
     end
+	if offense.dispel.mobs and offense.dispel.mobs[mob_id] then
+		offense.dispel.mobs[mob_id] = nil
+	end
 end
 
-function removeAura(buff_id)
+function handle_lose_buff(buff_id)
 	if buff_id and enfeebling:contains(buff_id) then
 		buffs.remove_debuff_aura(packet_player.name,buff_id)
 	end
@@ -179,15 +217,6 @@ function processAction(ai, monitored_ids)
                         end
                     end
                 
-                    -- if (tact.message_id == 0) and (actor.name == healer.name) then
-                        -- local spell = res.spells[ai.param]
-                        -- if spell ~= nil then
-                            -- if spell.type == 'Geomancy' then
-                                -- register_action(spell.type, ai.param)
-                            -- end
-                        -- end
-                    -- end
-                
                     if hb.modes.showPacketInfo then
                         local msg = res.action_messages[tact.message_id] or {en='???'}
                         atcfs('[0x28]Action(%s): %s { %s } %s %s { %s } | %s', tact.message_id, actor.name, ai.param, rarr, target.name, tact.param, msg.en)
@@ -247,7 +276,7 @@ function registerEffect(ai, tact, actor, target, monitored_ids)
         elseif msg_gain_ws:contains(tact.message_id) then
             cause = res.weapon_skills[ai.param]
         end
-        
+
         local buff = res.buffs[tact.param]
         if enfeebling:contains(tact.param) then
             buffs.register_debuff(target, buff, true, cause)
@@ -261,6 +290,7 @@ function registerEffect(ai, tact, actor, target, monitored_ids)
             buffs.register_debuff(target, buff, false)
         else
             buffs.register_buff(target, buff, false)
+			buffs.register_dispelable_buffs(target.id, buff.id, false)	--Dispel removal
         end
     elseif messages_noEffect:contains(tact.message_id) then     --ai.param: spell; tact.param: buff/debuff
         --Spell had no effect on {target}
@@ -274,8 +304,7 @@ function registerEffect(ai, tact, actor, target, monitored_ids)
                         buffs.register_debuff(target, debuff, false)
                     end
                 end
-            elseif spells_buffs:contains(spell.id) then
-                --The buff must already be active, or there must be some debuff preventing the buff from landing
+            elseif spells_buffs:contains(spell.id) then		--The buff must already be active, or there must be some debuff preventing the buff from landing
                 local buff = buffs.buff_for_action(spell)
                 if (buff == nil) then
                     atc(123, 'ERROR: No buff found for spell: '..spell.en)
@@ -285,10 +314,13 @@ function registerEffect(ai, tact, actor, target, monitored_ids)
                         buffs.register_debuff(target, 'slow', true)
                     end
                 end
-            elseif spell_debuff_idmap[spell.id] ~= nil and targ_is_enemy then
-                --The debuff already landed from someone else
+            elseif spell_debuff_idmap[spell.id] ~= nil and targ_is_enemy then	--The debuff already landed from someone else
                 local debuff_id = spell_debuff_idmap[spell.id]
                 buffs.register_debuff(target, debuff_id, true)
+			elseif targ_is_enemy and S{260,360,462}:contains(spell.id) then		--Dispel no effect, assuming every buff is removed
+				if offense.dispel.mobs and offense.dispel.mobs[target.id] then
+					offense.dispel.mobs[target.id] = nil
+				end
             end
         end
     elseif messages_specific_debuff_gain[tact.message_id] ~= nil then
@@ -317,7 +349,7 @@ function registerEffect(ai, tact, actor, target, monitored_ids)
     end--/message ID checks
 end
 
-windower.register_event('lose buff', removeAura)
+windower.register_event('lose buff', handle_lose_buff)
 -----------------------------------------------------------------------------------------------------------
 --[[
 Copyright © 2016, Lorand
