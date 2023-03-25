@@ -122,6 +122,23 @@ function processCommand(command,...)
 		elseif S{'resume','on'}:contains(cmd) then
 			offense.dispel.active = true
 			atc('Auto Dispel is now active.')
+		elseif cmd == 'ignore' then
+			local mob_string = args[2]:lower():capitalize()
+			offense.dispel.ignored:add(mob_string)
+			atc('Added mob to dispel ignore list: '..mob_string)
+		elseif cmd == 'unignore' then
+			local mob_string = args[2]:lower():capitalize()
+			if offense.dispel.ignored:contains(mob_string) then
+				offense.dispel.ignored:remove(mob_string)
+				atc('Removed mob from dispel ignore list: '..mob_string)
+				local show_dispel_ignore_names = ''
+				for k,v in pairs(offense.dispel.ignored) do
+					show_dispel_ignore_names = show_dispel_ignore_names..'['..k..']'
+				end
+				atc('Dispel Ignore List: '..show_dispel_ignore_names)
+			else
+				atc('Error: Mob not in current list')
+			end
 		end
     elseif S{'disable'}:contains(command) then
         if not validate(args, 1, 'Error: No argument specified for Disable') then return end
@@ -145,7 +162,7 @@ function processCommand(command,...)
 			local mob_string = args[2]:lower():capitalize()
 			if offense.moblist.mobs:contains(mob_string) then
 				offense.moblist.mobs:remove(mob_string)
-				atc('Removed mob to debuff list: '..mob_string)
+				atc('Removed mob from debuff list: '..mob_string)
 				local show_moblist_names = ''
 				for k,v in pairs(offense.moblist.mobs) do
 					show_moblist_names = show_moblist_names..'['..k..']'
@@ -356,7 +373,7 @@ function processCommand(command,...)
     elseif command == 'minblue' then
         if not validate(args, 1, 'Error: No argument specified for minBlue') then return end
         local val = tonumber(args[1])
-        if (val ~= nil) and (1 <= val) and (val <= 3) then
+        if (val ~= nil) and (1 <= val) and (val <= 4) then
             settings.healing.min.blue = val
             atc('Minimum blue tier set to '..val)
         else
@@ -472,6 +489,35 @@ function processCommand(command,...)
             watchall = false
             atc(123,'Watch all parties set to false.')
         end
+	elseif S{'showdebuff'}:contains(command) then
+		local cmd = args[1] and args[1]:lower() or (hb.showdebuff and 'off' or 'on')
+        if S{'on','true'}:contains(cmd) then
+            hb.showdebuff = true
+            atc('Debuff List is displayed.')
+			hb.txts.debuffList:visible(true)
+        elseif S{'off','false'}:contains(cmd) then
+            hb.showdebuff = false
+			hb.txts.debuffList:visible(false)
+            atc('Debuff List is hidden.')
+		end
+	elseif S{'automp'}:contains(command) then
+		local cmd = args[1] and args[1]:lower() or (hb.autoRecoverMPMode and 'off' or 'on')
+        if S{'on','true'}:contains(cmd) then
+            hb.autoRecoverMPMode = true
+            atc('Auto Recover MP [Coalition Ether] is ON.')
+        elseif S{'off','false'}:contains(cmd) then
+			hb.autoRecoverMPMode = false
+            atc('Auto Recover MP [Coalition Ether] is OFF.')
+		end
+	elseif S{'autohp'}:contains(command) then
+		local cmd = args[1] and args[1]:lower() or (hb.autoRecoverHPMode and 'off' or 'on')
+        if S{'on','true'}:contains(cmd) then
+            hb.autoRecoverHPMode = true
+            atc('Auto Recover HP [Vile Elixir] is ON.')
+        elseif S{'off','false'}:contains(cmd) then
+			hb.autoRecoverHPMode = false
+            atc('Auto Recover HP [Vile Elixir] is OFF.')
+		end
     elseif command == 'ignoretrusts' then
         utils.toggleX(settings, 'ignoreTrusts', args[1], 'Ignoring of Trust NPCs', 'IgnoreTrusts')
     elseif command == 'packetinfo' then
@@ -855,6 +901,76 @@ function utils.ready_to_use(action)
     end
 end
 
+function utils.debuffs_disp()
+	local debuffs_lists = L()
+
+	if next(offense.mobs) ~= nil then
+		debuffs_lists:append('-Debuff List-')
+		local t_target = windower.ffxi.get_mob_by_target('t') or nil
+		for mob_id,debuff_table in pairs(offense.mobs) do
+			local claim_target = windower.ffxi.get_mob_by_id(mob_id) and windower.ffxi.get_mob_by_id(mob_id).claim_id or nil
+			if (utils.check_claim_id(claim_target)) or (t_target and t_target.valid_target and t_target.is_npc and t_target.spawn_type == 16 and t_target.id == mob_id) then
+				local count = 0
+				for _,v2 in pairs(debuff_table) do
+					if count == 0 then 
+						debuffs_lists:append('['..v2[2]..'] - '..mob_id)
+					end
+					debuffs_lists:append(v2[1].." : "..string.format(os.date('%M:%S',os.time()-v2.landed)))
+					count = count +1
+				end
+			end
+		end
+	end
+    hb.txts.debuffList:text(getPrintable(debuffs_lists))
+    hb.txts.debuffList:visible(settings.textBoxes.debuffList.visible)
+end
+
+function utils.toggle_disp()
+	local toggle_list = L()
+	local hp_toggle = hb.autoRecoverHPMode and '\\cs(0,0,255)[ON]\\cr' or '\\cs(255,0,0)[OFF]\\cr'
+	toggle_list:append(('[Auto HP]: %s'):format(hp_toggle))
+	local mp_toggle = hb.autoRecoverMPMode and '\\cs(0,0,255)[ON]\\cr' or '\\cs(255,0,0)[OFF]\\cr'
+	toggle_list:append(('[Auto MP]: %s'):format(mp_toggle))
+    hb.txts.toggleList:text(getPrintable(toggle_list))
+    hb.txts.toggleList:visible(settings.textBoxes.toggleList.visible)
+end
+
+function utils.haveItem(item_id)
+	for bag in T(__bags.usable):it() do
+		for item, index in T(windower.ffxi.get_items(bag.id)):it() do
+			if type(item) == 'table' and item.id == item_id then
+				return true
+			end
+		end
+	end
+	return false
+end
+
+function utils.check_recovery_item()
+	if (not hb.autoRecoverMPMode) and (not hb.autoRecoverHPMode) then return false end
+
+	if hb.autoRecoverHPMode and not moving and windower.ffxi.get_player().vitals.hpp < 30 then
+		if utils.haveItem(4175) then
+			atc(123,'HP LOW: Vile Elixir +1')
+			windower.chat.input('/item "Vile Elixir +1" <me>')
+			return true
+		elseif utils.haveItem(4174) then
+			atc(123,'HP LOW: Vile Elixir')
+			windower.chat.input('/item "Vile Elixir" <me>')
+			return true
+		end
+	end
+	
+	if hb.autoRecoverMPMode and not moving and windower.ffxi.get_player().vitals.mpp < 25 then
+		if utils.haveItem(5987) then
+			atc(123,'MP LOW: Coalition Ether')
+			windower.chat.input('/item "Coalition Ether" <me>')
+			return true
+		end
+	end
+	return false
+end
+
 --==============================================================================
 --          String Formatting Functions
 --==============================================================================
@@ -1012,10 +1128,10 @@ end
 
 function utils.refresh_textBoxes()
 	local OurReso = windower.get_windower_settings()
-	local X_action_queue = OurReso.x_res - 725
+	local X_action_queue = OurReso.x_res - 765
 	local X_mon_box = OurReso.x_res - 305
 
-    local boxes = {'actionQueue','moveInfo','actionInfo','montoredBox'}
+    local boxes = {'actionQueue','moveInfo','actionInfo','montoredBox','debuffList','toggleList'}
     for _,box in pairs(boxes) do
         local bs = settings.textBoxes[box]
 		local bst
@@ -1025,9 +1141,12 @@ function utils.refresh_textBoxes()
 			bst = {pos={x=X_mon_box, y=bs.y}, bg=settings.textBoxes.bg, stroke={alpha=255, blue=0, green=0, red=0, width=0}}
 		elseif box == 'actionQueue' then
 			bst = {pos={x=X_action_queue, y=bs.y}, bg=settings.textBoxes.bg, stroke={alpha=255, blue=0, green=0, red=0, width=0}}
+		elseif box == 'debuffList' then
+			bst = {pos={x=bs.x, y=bs.y}, bg=settings.textBoxes.bg_other, stroke={alpha=255, blue=0, green=0, red=0, width=0}}
+		elseif box == 'toggleList' then
+			bst = {pos={x=X_mon_box, y=bs.y}, bg=settings.textBoxes.bg, stroke={alpha=255, blue=0, green=0, red=0, width=0}}
 		end
 	
-        --bst.flags = {right=(bs.x < 0), bottom=(bs.y < 0)}
         if (bs.font ~= nil) then
             bst.text = {font=bs.font}
         end

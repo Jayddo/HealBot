@@ -25,7 +25,6 @@ local function local_queue_disp()
     hb.txts.actionQueue:visible(settings.textBoxes.actionQueue.visible)
 end
 
-
 --[[
 	Builds an action queue for defensive actions.  Returns the action deemed most important at the time.
 --]]
@@ -109,6 +108,7 @@ function actions.get_defensive_action()
 	elseif (action.buff ~= nil) then
 		return action.buff
 	end
+	utils.check_recovery_item()
 	return nil
 end
 
@@ -220,7 +220,6 @@ function actions.take_action(player, partner, targ)
 		if offense.moblist.active and offense.moblist.mobs then
 			actions.build_mob_debuff_list(player, offense.moblist.mobs)
         end
-		local dispel_battle_target = windower.ffxi.get_mob_by_target('bt') or nil
 		if offense.dispel.active and offense.dispel.mobs then
 			actions.build_dispel_list(player, offense.dispel.mobs)
 		end

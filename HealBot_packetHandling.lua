@@ -45,10 +45,10 @@ function handle_dispel_action(act)
 		local targets = act.targets
 		local action_buff = targets[1].actions[1].param
 	
-		if target and (target.is_npc and targets[1].id == actor.id) and target.name ~= healer.name and S{4,11}:contains(category) then 
+		if target and utils.isMonster(actor.index) and utils.isMonster(target.index) and S{4,11}:contains(category) then 
 			if category == 11 then	-- Monster abilitiies
-				if res.monster_abilities[param] and utils.isMonster(target.index) then 
-					if action_buff ~= 0 and not special_mob_ja[param] and not (dispel_buffs_blacklist:contains(action_buff)) then
+				if res.monster_abilities[param] and not (dispel_mob_ja_blacklist:contains(param)) then 
+					if res.buffs[action_buff] and not special_mob_ja[param] and not (dispel_buffs_blacklist:contains(action_buff)) then
 						buffs.register_dispelable_buffs(target.id, action_buff, true)
 					elseif special_mob_ja[param] then	-- Special abilitiies that don't return buff value.
 						for _,mob_buff in pairs(special_mob_ja[param]) do
@@ -57,8 +57,8 @@ function handle_dispel_action(act)
 					end
 				end
 			elseif category == 4 then	-- Monster spells
-				if res.spells[param] and utils.isMonster(target.index) then
-					if action_buff ~= 0 and not (dispel_buffs_blacklist:contains(action_buff)) then
+				if res.spells[param] then
+					if res.buffs[action_buff] and not (dispel_buffs_blacklist:contains(action_buff)) then
 						buffs.register_dispelable_buffs(target.id, action_buff, true)
 					end
 				end
@@ -185,6 +185,7 @@ function processMessage(ai, monitored_ids)
                     buffs.resetDebuffTimers('ALL')
                 elseif enfeebling:contains(ai.param_1) then
                     buffs.register_debuff(target, res.buffs[ai.param_1], false)
+					buffs.register_ipc_debuff_loss(target, res.buffs[ai.param_1])
                 else
                     buffs.register_buff(target, res.buffs[ai.param_1], false)
                 end
@@ -209,10 +210,10 @@ function processAction(ai, monitored_ids)
                 if not messages_blacklist:contains(tact.message_id) then
                     if (tact.message_id == 0) and (ai.actor_id == healer.id) then
                         if indi_spell_ids:contains(ai.param) then
-                            healer.indi.latest = {spell = res.spells[ai.param], landed = os.clock(), is_indi = true}
+                            healer.indi.latest = {spell = res.spells[ai.param], landed = os.time(), is_indi = true}
                             buffs.register_buff(target, healer.indi.latest, true)
                         elseif geo_spell_ids:contains(ai.param) then
-                            healer.geo.latest = {spell = res.spells[ai.param], landed = os.clock(), is_geo = true}
+                            healer.geo.latest = {spell = res.spells[ai.param], landed = os.time(), is_geo = true}
                             buffs.register_buff(target, healer.geo.latest, true)
                         end
                     end
@@ -251,13 +252,10 @@ function registerEffect(ai, tact, actor, target, monitored_ids)
         elseif S{23,24,25,26,27,33,34,35,36,37}:contains(ai.param) then
             buffs.register_debuff(target, 'Dia', true, spell)
 		elseif ai.param == 503 then -- Impact
-			buffs.register_debuff(target, 'STR Down', true, spell)
-		elseif ai.param == 727 then -- Silent Storm
-			buffs.register_debuff(target, 'Silence', true, spell)
-		elseif ai.param == 728 then -- Tenebral Crush
-		    buffs.register_debuff(target, 'Defense Down', true, spell)
-        elseif ai.param == 692 then -- Sudden Lunge
-		    buffs.register_debuff(target, 'Stun', true, spell)
+			buffs.register_debuff(target, 'CHR Down', true, spell)
+		elseif bluemage_spells[ai.param] then
+			local blu_spell_cause = {name=string.format("%s %s", spell.name, bluemage_spells[ai.param].text)}
+			buffs.register_debuff(target, bluemage_spells[ai.param].buff, true, blu_spell_cause)
         end
     elseif messages_magicHealed:contains(tact.message_id) then
         local spell = res.spells[ai.param]
@@ -266,28 +264,48 @@ function registerEffect(ai, tact, actor, target, monitored_ids)
         elseif S{23,24,25,26,27,33,34,35,36,37}:contains(ai.param) then
             buffs.register_debuff(target, 'Dia', true, spell)
         end
+	elseif msg_gain_ws:contains(tact.message_id) then
+		if stat_down_ws[ai.param] then
+			local ws_cause = {name=string.format("%s %s", res.weapon_skills[ai.param].name, stat_down_ws[ai.param].text)}
+			buffs.register_debuff(target, stat_down_ws[ai.param].buff, true, ws_cause)
+		end
     elseif messages_gainEffect:contains(tact.message_id) then   --ai.param: spell; tact.param: buff/debuff
         --{target} gains the effect of {buff} / {target} is {debuff}ed
         local cause = nil
+		local tier = nil
+		local steps_cause = nil
         if msg_gain_abil:contains(tact.message_id) then
-            cause = res.job_abilities[ai.param]
+			if S{519,520,521,591}:contains(tact.message_id) then -- Steps
+				cause = res.job_abilities[ai.param]
+				tier = ai.targets[1].actions[1].param
+				steps_cause = {name=string.format("%s: Lv.%s", cause.name, tier)}
+			else
+				cause = res.job_abilities[ai.param]
+			end
         elseif msg_gain_spell:contains(tact.message_id) then
             cause = res.spells[ai.param]
-        elseif msg_gain_ws:contains(tact.message_id) then
-            cause = res.weapon_skills[ai.param]
         end
 
         local buff = res.buffs[tact.param]
-        if enfeebling:contains(tact.param) then
-            buffs.register_debuff(target, buff, true, cause)
+		if dnc_steps[tact.message_id] then
+			buffs.register_debuff(target, res.buffs[dnc_steps[tact.message_id]], true, steps_cause)
+		elseif enfeebling:contains(tact.param) then
+			if bluemage_spells[ai.param] then
+				cause = res.spells[ai.param]
+				local blu_spell_cause = {name=string.format("%s %s", cause.name, bluemage_spells[ai.param].text)}
+				buffs.register_debuff(target, bluemage_spells[ai.param].buff, true, blu_spell_cause)
+			else
+				buffs.register_debuff(target, buff, true, cause)
+			end
         else
-            buffs.register_buff(target, buff, true, cause)
+			buffs.register_buff(target, buff, true, cause)
         end
     elseif messages_loseEffect:contains(tact.message_id) then   --ai.param: spell; tact.param: buff/debuff
         --{target}'s {buff} wore off
         local buff = res.buffs[tact.param]
         if enfeebling:contains(tact.param) then
             buffs.register_debuff(target, buff, false)
+			buffs.register_ipc_debuff_loss(target, buff)
         else
             buffs.register_buff(target, buff, false)
 			buffs.register_dispelable_buffs(target.id, buff.id, false)	--Dispel removal
@@ -316,7 +334,12 @@ function registerEffect(ai, tact, actor, target, monitored_ids)
                 end
             elseif spell_debuff_idmap[spell.id] ~= nil and targ_is_enemy then	--The debuff already landed from someone else
                 local debuff_id = spell_debuff_idmap[spell.id]
-                buffs.register_debuff(target, debuff_id, true)
+				local cause = res.spells[spell.id]
+				if not (offense.mobs[target.id] and offense.mobs[target.id][debuff_id]) then
+					if not (offense.mobs[target.id] and not S{2,193}:contains(offense.mobs[target.id][debuff_id])) then		--Sleep vs Lullaby handling
+						buffs.register_debuff(target, debuff_id, true, cause)
+					end
+				end
 			elseif targ_is_enemy and S{260,360,462}:contains(spell.id) then		--Dispel no effect, assuming every buff is removed
 				if offense.dispel.mobs and offense.dispel.mobs[target.id] then
 					offense.dispel.mobs[target.id] = nil
@@ -344,8 +367,8 @@ function registerEffect(ai, tact, actor, target, monitored_ids)
         end
     elseif S{655}:contains(tact.message_id) and targ_is_enemy then    --${actor} casts ${spell}.${lb}${target} completely resists the spell.
         offense.register_immunity(target, res.buffs[tact.param])
-    elseif messages_paralyzed:contains(tact.message_id) then
-        buffs.register_debuff(actor, 'paralysis', true)
+    -- elseif messages_paralyzed:contains(tact.message_id) and not targ_is_enemy then
+        -- buffs.register_debuff(actor, 'paralysis', true, cause)
     end--/message ID checks
 end
 

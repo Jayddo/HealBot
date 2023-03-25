@@ -15,7 +15,7 @@ serialua = _libs.lor.serialization
 hb = {
     active = false, configs_loaded = false, partyMemberInfo = {}, ignoreList = S{}, extraWatchList = S{}, job_registry= T{},
     modes = {['showPacketInfo'] = false, ['debug'] = false, ['mob_debug'] = false, ['independent'] = false},
-    _events = {}, txts = {}, config = {}
+    _events = {}, txts = {}, config = {}, showdebuff = true, ipc_mob_debuffs = T{}, autoRecoverMPMode = false, autoRecoverHPMode = false
 }
 healer = T{}
 settings = {}
@@ -42,6 +42,16 @@ local pt_keys = {'party1_count', 'party2_count', 'party3_count'}
 local pm_keys = {
     {'p0','p1','p2','p3','p4','p5'}, {'a10','a11','a12','a13','a14','a15'}, {'a20','a21','a22','a23','a24','a25'}
 }
+
+__bags = {}
+local getBagType = function(access, equippable)
+    return S(res.bags):filter(function(key) return (key.access == access and key.en ~= 'Recycle' and (not key.equippable or key.equippable == equippable)) or key.id == 0 and key end)
+end
+
+do -- Setup Bags.
+    __bags.usable = T(getBagType('Everywhere', false))
+end
+
 
 hb._events['load'] = windower.register_event('load', function()
     if not _libs.lor then
@@ -106,6 +116,8 @@ hb._events['cmd'] = windower.register_event('addon command', processCommand)
     Executes before each frame is rendered for display.
     Acts as the run() method of a threaded application.
 --]]
+local last_render = 0
+local delay = 0.5
 hb._events['render'] = windower.register_event('prerender', function()
     if not hb.configs_loaded then return end
 
@@ -163,6 +175,13 @@ hb._events['render'] = windower.register_event('prerender', function()
             windower.send_ipc_message(ipc_req)
             healer.last_ipc_sent = now
         end
+		if (os.clock()-last_render) > 0.5 then
+			if hb.active and hb.showdebuff then
+				utils.debuffs_disp()
+			end
+			utils.toggle_disp()
+			last_render = os.clock()
+		end
     end
 end)
 
@@ -349,10 +368,11 @@ function hb.process_ipc(msg)
                 local response = {
                     method='POST', pk='buff_ids', val=player.buffs,
                     pid=player.id, name=player.name, stype=player.spawn_type, 
-					aura_table=buffs.auras,
+					aura_table=buffs.auras, mob_loss_debuff_table=hb.ipc_mob_debuffs,
                 }
                 local encoded = serialua.encode(response)
                 windower.send_ipc_message(encoded)
+				hb.ipc_mob_debuffs = T{}
             else
                 atcfs(123, 'Invalid pk for GET request: %s', loaded.pk)
             end
@@ -377,6 +397,15 @@ function hb.process_ipc(msg)
 						end
 					end
                     buffs.review_active_buffs(player, loaded.val)
+					if loaded.mob_loss_debuff_table then
+						if next(loaded.mob_loss_debuff_table) ~= nil then
+							for tid, debuff in pairs(loaded.mob_loss_debuff_table) do
+								for _,v in pairs(debuff) do
+									buffs.register_debuff(v.targ, v.db, false)
+								end
+							end
+						end
+					end
                 else
                     atcfs(123, 'Missing name in POST message: %s', msg)
                 end
@@ -392,7 +421,6 @@ function hb.process_ipc(msg)
 end
 
 hb._events['ipc'] = windower.register_event('ipc message', hb.process_ipc)
-
 
 --======================================================================================================================
 --[[

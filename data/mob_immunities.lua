@@ -47,6 +47,9 @@ return {
     ["Awoken Hakenmann"] = S{
         2
     },
+    ["Awoken Hrani"] = S{
+        2
+    },
     ["Awoken Hrungnir"] = S{
         2
     },
@@ -207,7 +210,8 @@ return {
         28
     },
     ["Bozzetto Songstress"] = S{
-        2
+        2,
+        7
     },
     ["Bozzetto Swiftshooter"] = S{
         28
@@ -368,6 +372,9 @@ return {
     ["Gnarled Rampart"] = S{
         194
     },
+    ["Goblin Replica"] = S{
+        2
+    },
     ["Gogmagog"] = S{
         7
     },
@@ -376,6 +383,9 @@ return {
     },
     ["Gyroscopic Gears"] = S{
         2
+    },
+    ["Henwen"] = S{
+        7
     },
     ["Heqet"] = S{
         2

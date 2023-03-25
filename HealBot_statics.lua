@@ -10,18 +10,49 @@ sparr = ' '..rarr..' '
 
 messages_magicDamage = S{2,252}
 messages_magicHealed = S{7}
-messages_gainEffect = S{73,82,127,128,141,160,164,166,186,194,203,205,230,236,237,242,243,266,267,268,269,270,271,272,277,278,279,280,319,320,321,374,375,412,645} -- 42?
+messages_gainEffect = S{73,82,100,127,128,141,160,164,166,186,194,203,205,230,236,237,242,243,266,267,268,269,270,271,272,277,278,279,280,319,320,321,374,375,412,519,520,521,529,591,602,645}
 
 msg_gain_no_source = S{73,128,160,164,166,203,205,266,267,269,270,272,277,278,279,280}
-msg_gain_abil = S{127,141,319,320,321,645}
-msg_gain_spell = S{82,230,236,237,268,271}
-msg_gain_ws = S{186,194,242,243} -- 185?
+msg_gain_abil = S{100,127,141,319,320,321,519,520,521,529,591,602,645}
+msg_gain_spell = S{82,230,236,237,268,269,270,271,272,280}
+msg_gain_ws = S{185,186,194,242,243}
 msg_gain_other = S{374,375,412}
+
+dnc_steps = {[519]=386,[520]=391,[521]=396,[591]=448}
+
+stat_down_ws = {
+	[83]={name="Armor Break",text="(-25% Def)",buff="Defense Down"},
+	[87]={name="Full Break",text="(-12.5% Def/-20 Acc+Eva)",buff="Defense Down"},
+	[89]={name="Metatron Torment",text="(-18.75 Def)",buff="Defense Down"},
+	[155]={name="Tachi: Ageha",text="(-25% Def)",buff="Defense Down"},
+	[181]={name="Shell Crusher",text="(-25% Def)",buff="Defense Down"},
+	[187]={name="Garland of Bliss",text="(-12.5% Def)",buff="Defense Down"},
+}
+
+bluemage_spells = {
+	[561]={name="Frightful Roar",text="(-10% Def)",buff="Defense Down"},
+	[633]={name="Enervation",text="(-10% Def/-8 MDB)",buff="Defense Down"},
+	[650]={name="Seedspray",text="(-8% Def)",buff="Defense Down"},
+	[651]={name="Corrosive Ooze",text="(-5% Def)",buff="Defense Down"},
+	[670]={name="Benthic Typhoon",text="(-10% Def)",buff="Defense Down"},
+	[692]={name="Sudden Lunge",text="(Stun)",buff="Stun"},
+	[717]={name="Sweeping Gouge",text="(-18% Def)",buff="Defense Down"},
+	[719]={name="Searing Tempest",text="(Burn)",buff="Burn"},
+	[720]={name="Spectral Floe",text="(Terror)",buff="Terror"},
+	[721]={name="Anvil Lightning",text="(Stun)",buff="Stun"},
+	[722]={name="Entomb",text="(Petrification)",buff="Petrification"},
+	[725]={name="Blinding Fulgor",text="(Flash)",buff="Flash"},
+	[726]={name="Scouring Spate",text="(-20% Atk)",buff="Attack Down"},
+	[727]={name="Silent Storm",text="(Silence)",buff="Silence"},
+	[728]={name="Tenebral Crush",text="(-20% Def)",buff="Defense Down"},
+	[740]={name="Tourbillion",text="(-33% Def)",buff="Defense Down"},
+	[742]={name="Bilgestorm",text="(-25% Def)",buff="Defense Down"},
+}
 
 messages_loseEffect = S{64,74,83,123,159,168,204,206,322,341,342,343,344,350,378,453,531,647}
 messages_wearOff = S{204,206}
 messages_paralyzed = S{29,84}
-messages_noEffect = S{75}
+messages_noEffect = S{75,283,423,659}
 messages_specific_debuff_gain = {
     [142]={'Accuracy Down','Evasion Down'},
     [144]={'Accuracy Down','Evasion Down'},
@@ -33,12 +64,8 @@ messages_specific_debuff_gain = {
     [333]={'INT Down'},
     [334]={'MND Down'},
     [335]={'CHR Down'},
-    --[519]={'Lethargic Daze'},
-    --[520]={'Sluggish Daze'},
-    --[521]={'Weakened Daze'},
     [533]={'Accuracy Down'},
     [534]={'Attack Down'},
-    [591]={'Bewildered Daze'}
 }
 messages_specific_debuff_lose = {
     [351]={'blindness','paralysis','poison','silence','disease'},
@@ -50,7 +77,7 @@ special_mob_ja = T{
 	[3057] = {80,81,82,83,84,85,86}, 		-- Mboze;Root of the Problem;Stat Absorbs Buffs and TP
 	[3024] = {33,34,37,190},                -- Kalunga;Batholithic Shell;Blaze Spikes,Stoneskin,Magic Atk. Boost,Haste
 	[3014] = {91,190},                      -- Ngai;Carcharian Verve;Attack Boost,Magic Atk. Boost
-	[3132] = {33,191,622},             		-- Henwen;Zealous Snort;Haste;enhances magic defense (Magic Def. Boost?) and increases likelihood of both Countering and Guarding (Guarding Rate Boost?).
+	[3132] = {33,191},   	          		-- Henwen;Zealous Snort;Haste;enhances magic defense (Magic Def. Boost?) and increases likelihood of both Countering and Guarding (Guarding Rate Boost?).
 	[2957] = {93,550,611},                  -- Marmorkrebs;Impenetrable Carapace;Defense Boost,Magic Evasion Boost
 	[2945] = {91},                          -- Aristaeus;Nature's Meditation;Enhances attacks,Temporary damage immunity (??)
 	[3220] = {33,37,91,93,190,191}, 		-- Gogmagog;Infernal Bulwark;Haste,Stoneskin,Attack Boost,Defense Boost,Magic Attack Bonus,Magic Defense Bonus.
@@ -74,7 +101,8 @@ debuff_map_id = T{
         ["Erase"]       	= T{11,12,13,21,128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,144,145,146,147,148,149,167,168,174,175,186,189,192,194,217,223,298,404,572},
 }
 
-dispel_buffs_blacklist = S{44,46,47,48,49,50,51,52,54,55,66,126,150,152,163,166,283,377,444,445,446,490,491,492,493,494,497,498,499,500,501,503,504,505,507,508,513,522}
+dispel_mob_ja_blacklist = S{2571}
+dispel_buffs_blacklist = S{0,44,46,47,48,49,50,51,52,54,55,66,126,150,152,163,166,283,377,444,445,446,490,491,492,493,494,497,498,499,500,501,503,504,505,507,508,513,522}
 spells_buffs = S{43,44,45,46,47,48,49,50,51,52,53,54,55,57,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,84,85,86,87,88,89,90,91,92,93,96,97,99,100,101,102,103,104,105,106,107,108,109,110,111,113,114,115,116,117,118,119,125,126,127,128,129,130,131,132,133,134,135,136,137,138,141,142,249,250,251,277,287,308,309,310,311,312,313,314,315,316,317,318,338,339,340,353,354,355,358,473,476,477,478,479,480,481,482,483,484,485,486,487,488,489,490,491,492,493,495,504,505,506,507,509,510,511,768,769,770,771,772,773,774,775,776,777,778,779,780,781,782,783,784,785,786,787,788,789,790,791,792,793,794,795,796,797,798,800,801,802,803,804,805,806,807,808,809,810,811,812,813,814,815,816,840,845,846,895}
 spells_damage = S{21,22,28,29,30,31,32,38,39,40,41,42,144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,160,161,162,163,164,165,166,167,168,169,170,171,172,173,174,175,176,177,178,179,180,181,182,183,184,185,186,187,188,189,190,191,192,193,194,195,196,197,198,199,200,201,202,203,204,205,206,207,208,209,210,211,212,213,214,215,216,217,218,219,244,245,246,247,248,320,321,322,323,324,325,326,327,328,329,330,331,332,333,334,335,336,337,496,497,498,499,500,501,502,828,829,830,831,832,833,834,835,836,837,838,839}
 spells_debuffs = S{23,24,25,26,27,33,34,35,36,37,56,58,59,79,80,98,112,220,221,222,223,224,225,226,227,228,229,230,231,232,233,234,235,236,237,238,239,240,242,243,252,253,254,255,256,257,258,259,260,266,267,268,269,270,271,272,273,274,275,276,278,279,280,281,282,283,284,285,286,319,341,342,343,344,345,346,347,348,349,350,351,352,356,357,359,360,361,362,363,364,365,366,367,368,369,370,371,372,373,374,375,376,377,421,422,423,454,455,456,457,458,459,460,461,462,463,466,471,472,503,508,799,817,818,819,820,821,822,823,824,825,826,827,841,842,843,844,503,692,727,728}
