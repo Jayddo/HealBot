@@ -297,6 +297,9 @@ return {
     ["Disjoined Mithra"] = S{
         28
     },
+    ["Disjoined Mithra ???"] = S{
+        28
+    },
     ["Disjoined Tarutaru"] = S{
         28
     },
@@ -570,6 +573,9 @@ return {
         2
     },
     ["Thillloab"] = S{
+        2
+    },
+    ["Thu'ban"] = S{
         2
     },
     ["Thunder Circle"] = S{
