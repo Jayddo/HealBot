@@ -11,6 +11,7 @@ utils = {normalize={}}
 local lor_res = _libs.lor.resources
 local lc_res = lor_res.lc_res
 local ffxi = _libs.lor.ffxi
+local debuffs_lists = L()
 
 function utils.normalize_str(str)
     return str:lower():gsub(' ', '_'):gsub('%.', '')
@@ -902,27 +903,89 @@ function utils.ready_to_use(action)
 end
 
 function utils.debuffs_disp()
-	local debuffs_lists = L()
-
-	if next(offense.mobs) ~= nil then
-		debuffs_lists:append('-Debuff List-')
-		local t_target = windower.ffxi.get_mob_by_target('t') or nil
-		for mob_id,debuff_table in pairs(offense.mobs) do
-			local claim_target = windower.ffxi.get_mob_by_id(mob_id) and windower.ffxi.get_mob_by_id(mob_id).claim_id or nil
-			if (utils.check_claim_id(claim_target)) or (t_target and t_target.valid_target and t_target.is_npc and t_target.spawn_type == 16 and t_target.id == mob_id) then
-				local count = 0
-				for _,v2 in pairs(debuff_table) do
-					if count == 0 then 
-						debuffs_lists:append('['..v2[2]..'] - '..mob_id)
+	debuffs_lists = L()
+	if next(offense.mobs) ~= nil or next(offense.dispel.mobs) ~= nil then
+		if next(offense.mobs) ~= nil then
+			local t_target = windower.ffxi.get_mob_by_target('t') or nil
+			local tindex = 0
+			for mob_id,debuff_table in pairs(offense.mobs) do
+				tindex = utils.get_mob_index(debuff_table)
+				local claim_target = tindex and windower.ffxi.get_mob_by_index(tindex) and windower.ffxi.get_mob_by_index(tindex).claim_id or nil
+				if (utils.check_claim_id(claim_target)) or (t_target and t_target.valid_target and t_target.is_npc and t_target.spawn_type == 16 and t_target.id == mob_id) then
+					utils.debuff_display_builder(debuff_table,true,false,mob_id,tindex)
+					if next(offense.dispel.mobs) ~= nil then
+						if offense.dispel.mobs[mob_id] then
+							utils.debuff_display_builder(offense.dispel.mobs[mob_id],false,true,mob_id)
+						end
 					end
-					debuffs_lists:append(v2[1].." : "..string.format(os.date('%M:%S',os.time()-v2.landed)))
-					count = count +1
+				end
+			end
+		end
+		-- If just dispel buffs
+		if next(offense.dispel.mobs) ~= nil then
+			local t_target = windower.ffxi.get_mob_by_target('t') or nil
+			local tindex = 0
+			for mob_id,dispel_table in pairs(offense.dispel.mobs) do
+				tindex = utils.get_mob_index(dispel_table)
+				local claim_target = tindex and windower.ffxi.get_mob_by_index(tindex) and windower.ffxi.get_mob_by_index(tindex).claim_id or nil
+				if not offense.mobs[mob_id] and ((utils.check_claim_id(claim_target)) or (t_target and t_target.valid_target and t_target.is_npc and t_target.spawn_type == 16 and t_target.id == mob_id)) then
+					utils.debuff_display_builder(dispel_table,true,true,mob_id,tindex)
 				end
 			end
 		end
 	end
     hb.txts.debuffList:text(getPrintable(debuffs_lists))
     hb.txts.debuffList:visible(settings.textBoxes.debuffList.visible)
+end
+
+function utils.debuff_display_builder(d_table, name, dispel, mob_id, mob_index)
+	local count = 0
+	local colorOrange = "\\cs(255,165,0)"
+	local colorRed = "\\cs(255,50,0)"
+	local formattedMessage = ""
+	local mob_claim_name = ""
+
+	for _,v in pairs(d_table) do
+		if count == 0 and name then
+			local claim_target = windower.ffxi.get_mob_by_index(mob_index) and windower.ffxi.get_mob_by_index(mob_index).claim_id or nil
+			if utils.check_claim_id(claim_target) then
+				mob_claim_name = string.format("%s%s\\cr", colorRed, v.mob_name)
+				debuffs_lists:append('['..mob_claim_name..'] - '..mob_id)
+			else
+				debuffs_lists:append('['..v.mob_name..'] - '..mob_id)
+			end
+		end
+		if dispel then
+			formattedMessage = string.format("%s%s\\cr", colorOrange, v.debuff_name)
+			debuffs_lists:append(formattedMessage.." : "..string.format(os.date('%M:%S',os.time()-v.landed)))
+		else
+			debuffs_lists:append(v.spell_name.." : "..string.format(os.date('%M:%S',os.time()-v.landed)))
+		end
+		count = count +1
+	end
+end
+
+function utils.get_mob_index(s_table)
+	for _,v in pairs(s_table) do
+		if v.mob_index then
+			return v.mob_index
+		end
+	end
+	return nil
+end
+
+function utils.check_debuffs_timer()
+	if next(offense.mobs) == nil then return end
+	for mob_id,debuff_table in pairs(offense.mobs) do
+		for k,v in pairs(debuff_table) do
+			if maximum_debuff_timers[v.spell_id] then
+				local now = os.time()
+				if now-debuff_table[k].landed >= maximum_debuff_timers[v.spell_id] then
+					offense.mobs[mob_id][k] = nil
+				end
+			end
+		end
+	end
 end
 
 function utils.toggle_disp()

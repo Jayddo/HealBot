@@ -416,17 +416,24 @@ function buffs.remove_debuff_aura(target, debuff)
 end
 
 --Dispel tracking
-function buffs.register_dispelable_buffs(target, debuff, gain)
+function buffs.register_dispelable_buffs(target, debuff, gain, tname, tindex, tspell)
 	if gain then
+		if not tspell then
+			tspell = res.buffs[debuff].en
+		end
 		if offense.dispel.mobs and offense.dispel.mobs[target] then
-			offense.dispel.mobs[target][debuff]= {landed = os.time()}
+			offense.dispel.mobs[target][debuff]= {landed = os.time(), debuff_name = tspell, mob_name = tname, mob_index = tindex}
 		else
 			offense.dispel.mobs[target] = {}
-			offense.dispel.mobs[target][debuff]= {landed = os.time()}
+			offense.dispel.mobs[target][debuff]= {landed = os.time(), debuff_name = tspell, mob_name = tname, mob_index = tindex}
 		end
 	else -- removal
 		if offense.dispel.mobs[target] and offense.dispel.mobs[target][debuff] then
 			offense.dispel.mobs[target][debuff] = nil
+		end
+		local mob_ids = table.keys(offense.dispel.mobs)
+		if mob_ids and offense.dispel.mobs[target] and next(offense.dispel.mobs[target]) == nil then
+			offense.dispel.mobs[target] = nil
 		end
 	end
 end
@@ -454,6 +461,13 @@ function buffs.register_debuff(target, debuff, gain, action)
     if debuff == nil then
         return
     end
+
+	if action and action.id and res.spells[action.id] then
+		local overwrites = res.spells[action.id].overwrites or {}
+		if not buffs.handle_overwrites(target.id, action.id, overwrites) then
+			return
+		end
+	end
     
     if debuff.enn == 'slow' then
         buffs.register_buff(target, 'Haste', false)
@@ -488,10 +502,11 @@ function buffs.register_debuff(target, debuff, gain, action)
 			aura_flag = buffs.auras[tname] and buffs.auras[tname][debuff.id] and buffs.auras[tname][debuff.id].aura_status or 'yes'
 		end
 		
+
 		if action then
-			debuff_tbl[debuff.id] = {landed = os.time(), aura = aura_flag, action.name, tname, tindex}
+			debuff_tbl[debuff.id] = {landed = os.time(), aura = aura_flag, spell_name = action.name, spell_id = action.id, mob_name = tname, mob_index = tindex}
 		else
-			debuff_tbl[debuff.id] = {landed = os.time(), aura = aura_flag, 'Unknown Spell', tname, tindex}
+			debuff_tbl[debuff.id] = {landed = os.time(), aura = aura_flag, spell_name = 'Unknown Spell', spell_id = 10000, mob_name = tname, mob_index = tindex}
 		end
 		
         if is_enemy and hb.modes.mob_debug then
@@ -500,6 +515,10 @@ function buffs.register_debuff(target, debuff, gain, action)
         atcd(('Detected %sdebuff: %s %s %s [%s]'):format(msg, debuff.en, rarr, tname, tid))
     else
         debuff_tbl[debuff.id] = nil
+		local mob_ids = table.keys(offense.mobs)
+		if mob_ids and offense.mobs[tid] and next(offense.mobs[tid]) == nil then
+			offense.mobs[tid] = nil
+		end
         if is_enemy and hb.modes.mob_debug then
             atc(('Detected %sdebuff: %s wore off %s [%s]'):format(msg, debuff.en, tname, tid))
         end
@@ -507,6 +526,34 @@ function buffs.register_debuff(target, debuff, gain, action)
     end
 end
 
+function buffs.handle_overwrites(target_id, new_spell_id, overwrites_table)
+    if not offense.mobs[target_id] then
+        return true
+    end
+    
+    for debuff_id, dbuff_table in pairs(offense.mobs[target_id]) do
+        local old = res.spells[dbuff_table.spell_id] and res.spells[dbuff_table.spell_id].overwrites or {}
+        
+        -- Check if there isn't a higher priority debuff active
+        if table.length(old) > 0 then
+            for _,v in ipairs(old) do
+                if new_spell_id == v then
+                    return false
+                end
+            end
+        end
+        
+        -- Check if a lower priority debuff is being overwritten
+        if table.length(overwrites_table) > 0 then
+            for _,v in ipairs(overwrites_table) do
+                if dbuff_table.spell_id == v then
+                    offense.mobs[target_id][debuff_id] = nil
+                end
+            end
+        end
+    end
+    return true
+end
 
 function buffs.process_buff_packet(target_id, status)
     if not target_id then return end
@@ -562,6 +609,7 @@ function buffs.register_buff(target, buff, gain, action)
             end
         end
     end
+
     local buff_tbl = is_enemy and offense.mobs[tid] or buffs.buffList[tname]
     --if is_enemy and offense.dispel[bkey] or buff_tbl[bkey] then
 	if buff_tbl[bkey] then
