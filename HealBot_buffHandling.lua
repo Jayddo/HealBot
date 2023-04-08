@@ -9,7 +9,7 @@ local buffs = {
     debuffList = {},
     buffList = {},
     ignored_debuffs = {},
-	gaol_auras = S{146,147,148,149,167,174,175,404},
+	gaol_auras = S{146,147,148,149,167,174,175,404,3,4,12,13},
 	perm_ignored_debuffs = S{136,137,138,139,140,141,142,540,557,558,559,560,561,562,563,564,565,566,567},
     action_buff_map = lor_settings.load('data/action_buff_map.lua'),
 	auras = {},
@@ -469,10 +469,6 @@ function buffs.register_debuff(target, debuff, gain, action)
 		end
 	end
     
-    if debuff.enn == 'slow' then
-        buffs.register_buff(target, 'Haste', false)
-        buffs.register_buff(target, 'Flurry', false)
-    end
     local tid, tname, tindex = target.id, target.name, target.index
     local is_enemy = (target.spawn_type == 16)
     if is_enemy then
