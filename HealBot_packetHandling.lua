@@ -406,6 +406,12 @@ function registerEffect(ai, tact, actor, target, monitored_ids)
             buffs.register_debuff(target, 'Bio', true, spell)
         elseif S{23,24,25,26,27,33,34,35,36,37}:contains(ai.param) then
             buffs.register_debuff(target, 'Dia', true, spell)
+		elseif helix_spells:contains(ai.param) then
+			local helix_dmg = ai.targets[1].actions[1].param <= 9999 and ai.targets[1].actions[1].param or 9999
+			local helix_spell_cause = {id=ai.param, name=string.format("%s [%s]", spell.name, helix_dmg)}
+		    buffs.register_debuff(target, 'Helix', true, helix_spell_cause)
+		elseif ai.param == 502 then -- Kaustra
+			local kaustra_spell_cause = {id=ai.param, name=string.format("%s [%s]", spell.name, ai.targets[1].actions[1].param)}
 		elseif messages_blm_ja_spells:contains(ai.param) then	--BLM ja spells
 			handle_ja_spells(target, spell)
 		elseif ai.param == 503 then -- Impact
@@ -500,7 +506,7 @@ function registerEffect(ai, tact, actor, target, monitored_ids)
             elseif spells_buffs:contains(spell.id) then		--The buff must already be active, or there must be some debuff preventing the buff from landing
                 local buff = buffs.buff_for_action(spell)
                 if (buff == nil) then
-                    atc(123, 'ERROR: No buff found for spell: '..spell.en)
+                    atcd('ERROR: No buff found for spell: '..spell.en)
                 else
                     buffs.register_buff(target, buff, false)
                 end

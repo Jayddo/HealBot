@@ -8,15 +8,17 @@
 rarr = string.char(129,168)
 sparr = ' '..rarr..' '
 
-messages_magicDamage = S{2,252,264}
+messages_magicDamage = S{2,252,264,265,268,269,271,272}
 messages_magicHealed = S{7}
-messages_gainEffect = S{73,82,100,127,128,141,160,164,166,186,194,203,205,230,236,237,242,243,266,267,268,269,270,271,272,277,278,279,280,319,320,321,374,375,412,519,520,521,529,591,602,645}
+messages_gainEffect = S{73,82,100,127,128,141,160,164,166,186,194,203,205,230,236,237,242,243,252,265,266,267,268,269,270,271,272,277,278,279,280,319,320,321,374,375,412,519,520,521,529,591,602,645}
 
 msg_gain_no_source = S{73,128,160,164,166,203,205,266,267,269,270,272,277,278,279,280}
 msg_gain_abil = S{100,127,141,319,320,321,519,520,521,529,591,602,645}
 msg_gain_spell = S{82,230,236,237,267,268,269,270,271,272,280}
 msg_gain_ws = S{185,186,194,242,243}
 msg_gain_other = S{374,375,412}
+
+helix_spells = S{278,279,280,281,282,283,284,285,885,886,887,888,889,890,891,892}
 
 messages_cor_shots = S{125,126,127,128,129,130,131,132}
 messages_dnc_steps = T{[519]=386,[520]=391,[521]=396,[591]=448}
@@ -85,6 +87,7 @@ messages_bluemage_spells = {
 	[651]={name="Corrosive Ooze",text="(-5% Def)",buff="Defense Down"},
 	[670]={name="Benthic Typhoon",text="(-10% Def)",buff="Defense Down"},
 	[692]={name="Sudden Lunge",text="(Stun)",buff="Stun"},
+	[708]={name="Subduction",text="(Gravity)",buff="Weight"},
 	[717]={name="Sweeping Gouge",text="(-18% Def)",buff="Defense Down"},
 	[719]={name="Searing Tempest",text="(Burn)",buff="Burn"},
 	[720]={name="Spectral Floe",text="(Terror)",buff="Terror"},
