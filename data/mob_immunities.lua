@@ -18,6 +18,7 @@ return {
         2
     },
     ["Amaranth Barrier"] = S{
+        2,
         4,
         5,
         13,
@@ -289,6 +290,7 @@ return {
         194
     },
     ["Dimensional Tether"] = S{
+        2,
         194
     },
     ["Disjoined Elvaan"] = S{
@@ -501,6 +503,9 @@ return {
     },
     ["Logi"] = S{
         2
+    },
+    ["Marmorkrebs"] = S{
+        7
     },
     ["Mboze"] = S{
         7
